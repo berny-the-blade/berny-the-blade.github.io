@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.berny.dominopernambucano",
+    "sha256_cert_fingerprints": [
+      "D9:16:27:2D:98:2D:59:97:ED:1E:4E:0F:95:CE:A1:53:B4:F3:3E:69:9A:6C:AB:96:39:E5:45:DD:D3:0A:5D:C5"
+    ]
+  }
+}]
