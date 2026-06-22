@@ -1,24 +1,22 @@
-const CACHE_NAME = 'domino-pernambuco-v10';
-// Don't pre-cache index.html — always fetch fresh so updates show up immediately.
+const CACHE_NAME = 'domino-pernambuco-v5';
 const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './domino_model.bin',
-  './symbolic-belief.js',
   'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap',
-  'https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js',
-  'https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js'
+  'https://cdn.tailwindcss.com',
+  'https://unpkg.com/react@18/umd/react.production.min.js',
+  'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js',
+  'https://unpkg.com/@babel/standalone/babel.min.js'
 ];
 
 // Install — cache core assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Cache assets individually so one failure doesn't block all
-      return Promise.allSettled(
-        ASSETS_TO_CACHE.map(url => cache.add(url).catch(e => console.warn('SW cache miss:', url, e)))
-      );
+      return cache.addAll(ASSETS_TO_CACHE);
     })
   );
   self.skipWaiting();
@@ -36,37 +34,27 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch — network-first for static assets so updates land on reload, with cache fallback for offline.
-// Firebase Realtime DB always goes to network. Navigation requests always go to network.
+// Fetch — network first, fall back to cache (game needs live Firebase)
 self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  const url = new URL(req.url);
+  const url = new URL(event.request.url);
 
-  // Always go to network for Firebase Realtime Database (live game state)
-  if (url.hostname.includes('firebaseio.com') || url.hostname.includes('firebasedatabase.app')) {
+  // Always go to network for Firebase realtime database
+  if (url.hostname.includes('firebaseio.com') || url.hostname.includes('googleapis.com')) {
     return;
   }
 
-  // Navigation requests + index.html: always network, never cache.
-  // This guarantees code updates show up on the next reload.
-  const isNav = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
-  if (isNav) {
-    event.respondWith(
-      fetch(req, { cache: 'no-store' }).catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
-  // All other static assets: network-first, fall back to cache when offline.
   event.respondWith(
-    fetch(req)
+    fetch(event.request)
       .then((response) => {
+        // Cache successful responses for offline fallback
         if (response.ok) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
         }
         return response;
       })
-      .catch(() => caches.match(req))
+      .catch(() => {
+        return caches.match(event.request);
+      })
   );
 });
