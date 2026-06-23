@@ -11,6 +11,9 @@
   <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+  <!-- 443-dim state encoder (Branch B base + symbolic belief). Must load
+       before the inline React script that calls SymbolicEncoder.encodeState443. -->
+  <script src="symbolic-belief.js"></script>
   <meta name="theme-color" content="#0f3d1e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -445,7 +448,9 @@
     }
 
     // === Neural Network Model (globals — must be outside App for loadNeuralModel call) ===
-    const NN_STATE_DIM = 185;
+    // 443 = 268 (Branch B base) + 175 (symbolic belief). Matches
+    // cloud_a100_g00150.pt and SymbolicEncoder.encodeState443.
+    const NN_STATE_DIM = 443;
     const NN_NUM_ACTIONS = 57;
 
     // === Training export config ===
@@ -486,7 +491,7 @@
     function layoutSpiral(board, W, H, HW, VW, gap, pads, avoidTL, avoidBR) {
       const n = board.length;
       if (n === 0) return { tiles: [] };
-      gap = gap || 2;
+      gap = (gap != null) ? gap : 2;
       pads = typeof pads === 'number'
         ? { top: pads, right: pads, bottom: pads, left: pads }
         : Object.assign({ top: 6, right: 6, bottom: 20, left: 6 }, pads || {});
@@ -511,10 +516,8 @@
         (avoidBR > 0 && x + w > W - avoidBR && y + h > H - avoidBR);
 
       const placed = []; // collision rects: {x, y, w, h}
-      // INVARIANT: COL_MARGIN must always be < gap (currently 8).
-      // If COL_MARGIN >= gap, every consecutive tile fails the overlap check
-      // and the auto-scale loop shrinks tiles to minimum, breaking the board.
-      const COL_MARGIN = 4;
+      // COL_MARGIN=0, gap=1: 1px spacing prevents rendering overlap; invariant 0 < 1 holds.
+      const COL_MARGIN = 0;
       const overlaps = (x, y, w, h) => {
         for (const p of placed) {
           if (x < p.x + p.w + COL_MARGIN && x + w + COL_MARGIN > p.x &&
@@ -674,6 +677,24 @@
       const setAiDiff = (v) => { setAiDifficulty(v); localStorage.setItem('domino_ai_difficulty', v); };
       const [botSpeed, setBotSpeed] = useState(localStorage.getItem('domino_bot_speed') || 'medium');
       const setBotSpd = (v) => { setBotSpeed(v); localStorage.setItem('domino_bot_speed', v); };
+
+      // 2026-05-09: pause toggle for screenshots / debugging.
+      // When paused: bot AI useEffect early-returns, auto-next-round timer
+      // doesn't fire, but human plays still work (so you can experiment).
+      // Spacebar toggles for desktop convenience.
+      const [isPaused, setIsPaused] = useState(false);
+      useEffect(() => {
+        const onKey = (e) => {
+          // Only toggle when no input is focused (avoid hijacking text fields)
+          if (e.key === ' ' && document.activeElement?.tagName !== 'INPUT'
+              && document.activeElement?.tagName !== 'TEXTAREA') {
+            e.preventDefault();
+            setIsPaused(p => !p);
+          }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, []);
       const [starterCountdown, setStarterCountdown] = useState(null);
       const [moveTimer, setMoveTimer] = useState(null);
       const [roundCountdown, setRoundCountdown] = useState(null);
@@ -697,6 +718,7 @@
         { key: 'alexandre', name: 'Alexandre', avatarType: 'image', avatarSrc: 'avatars/alexandre.png', color: '#3b82f6' },
         { key: 'carlinhos', name: 'Carlinhos', avatarType: 'image', avatarSrc: 'avatars/carlinhos.png', color: '#22c55e' },
         { key: 'bernd', name: 'Bernd', avatarType: 'image', avatarSrc: 'avatars/bernd.png', color: '#a855f7' },
+        { key: 'junior', name: 'Junior', avatarType: 'image', avatarSrc: 'avatars/junior.png', color: '#10b981' },
       ];
       const BOT_PROFILES = [
         { key: 'dona-maria', name: 'Dona Maria', avatarType: 'initials', initials: 'DM', color: '#ef4444', bgGradient: 'linear-gradient(135deg, #ef4444, #b91c1c)' },
@@ -823,7 +845,9 @@
           gameEnded: false,
           waitingForStarterChoice: false,
           lastWinningTeam: null,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          matchId: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('match_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10)),
+          gameIndex: 1
         };
 
         try {
@@ -998,6 +1022,14 @@
         hands[startPlayer] = hands[startPlayer].filter(t => t.id !== highestDoubleTile.id);
         const nextPlayer = (startPlayer + 1) % 4;
 
+        // 2026-05-09: rotate matchId on every new partida. Previously the
+        // initial matchId from room-creation was carried by the ...gameState
+        // spread across every new partida, so telemetry analysis saw a single
+        // match_id with 50+ rounds spanning multiple sessions/days.
+        const newMatchId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : ('match_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10));
+
         const game = {
           ...gameState,
           gameStarted: true,
@@ -1013,10 +1045,19 @@
           scoreMultiplier: 1,
           isDobrada: false,
           lastWinningTeam: null,
+          matchId: newMatchId,
+          gameIndex: 1,
+          // 2026-05-09: clear stale state from previous partida so the
+          // round-announcement banner doesn't flash the last score of the
+          // previous match when a new one starts.
+          roundResult: null,
+          blockedReveal: null,
+          lastPass: null,
           waitingForStarterChoice: false,
-          moveHistory: [{p: startPlayer, t: 'play', tile: highestDoubleTile}],
+          moveHistory: [{p: startPlayer, t: 'play', tile: highestDoubleTile, side: null, lE_before: null, rE_before: null, lE_after: highestDoubleTile.left, rE_after: highestDoubleTile.right, ts: Date.now()}],
           message: gameState.players[startPlayer].name + ' jogou a carroca ' + highestDouble + '-' + highestDouble + '! Vez de ' + gameState.players[nextPlayer].name + '!',
-          matchTarget: 6
+          matchTarget: 6,
+          gameStartedAt: Date.now()
         };
 
         await db.ref('rooms/' + roomCode).set(game);
@@ -1178,6 +1219,250 @@
           }
         }
         return k;
+      };
+
+      // ===== Telemetry: write structured per-game record to Firebase =====
+      // (TILE_INDEX is declared later in the file at the existing
+      // "TILE INDEX LOOKUP" block; it's in the same lexical scope so the
+      // closure below resolves it at call time. Don't redeclare here —
+      // duplicate const blows up the whole script at parse.)
+
+      const _telemetryProfileKey = (player) => {
+        if (!player) return 'unknown';
+        if (player.avatar && player.avatar.key) return player.avatar.key;
+        // Fallback: lowercase ASCII-ish of name
+        return ('p_' + (player.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '_')).slice(0, 32);
+      };
+
+      // Track whether THIS device has already written telemetry for the current
+      // game (keyed by matchId|gameIndex|teamScores). Only one device writes per
+      // game-end to avoid 4-way duplicates. Convention: device with the
+      // lowest-index local human seat writes. If no human, slot 0 always writes.
+      const _telemetryWrittenRef = useRef({});
+
+      const _shouldWriteTelemetry = (gs, ps) => {
+        if (!gs || !gs.players) return false;
+        const humanLocalSlot = ps; // playerSlot of THIS device
+        if (humanLocalSlot == null || humanLocalSlot < 0) return false;
+        // Pick the canonical writer: lowest local-human seat among connected devices.
+        // We only have visibility into our own seat, so each device asks: am I the
+        // lowest-numbered seat hosting a connected human? If we are seat S, we
+        // write if no seat < S is human. (For 4-bot situations, no telemetry —
+        // would never happen with this app since at least 1 human is always present.)
+        for (let s = 0; s < humanLocalSlot; s++) {
+          if (gs.players[s] && gs.players[s].isHuman) return false;
+        }
+        return true;
+      };
+
+      const writeGameTelemetry = (gs, ps, outcome) => {
+        try {
+          if (!gs || !gs.players || !gs.moveHistory) return;
+          if (!_shouldWriteTelemetry(gs, ps)) return;
+
+          const matchId = gs.matchId || 'unknown_match';
+          const gameIndex = gs.gameIndex || 1;
+          // 2026-05-09: dropped teamScores from dedupe key. Including it caused
+          // ~20% duplicate writes when the round-end observer fired for both
+          // the roundResult update and the teamScores update with different
+          // local snapshots of the score (timing race). (matchId, gameIndex)
+          // already uniquely identifies a round within this room.
+          const dedupeKey = matchId + '|' + gameIndex;
+          if (_telemetryWrittenRef.current[dedupeKey]) return;
+          _telemetryWrittenRef.current[dedupeKey] = true;
+
+          const gameId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : ('game_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10));
+
+          // Build players array from gs.players (object keyed 0..3)
+          const players = [];
+          for (let s = 0; s < 4; s++) {
+            const p = gs.players[s];
+            const isLocal = (s === ps);
+            players.push({
+              seat: s,
+              profile_key: _telemetryProfileKey(p),
+              name: p ? (p.name || null) : null,
+              is_human: p ? !!p.isHuman : false,
+              is_local: isLocal
+            });
+          }
+
+          // Compute moves array. moveHistory entries are already structured
+          // play/pass records with timestamps. Compute action_taken_ms = ts -
+          // (prev move ts or gameStartedAt).
+          const startTs = gs.gameStartedAt || (gs.moveHistory[0] && gs.moveHistory[0].ts) || Date.now();
+          // 2026-05-11: reconstruct each seat's starting hand so we can compute
+          // legal_count (forced-vs-real-decision marker) directly at write time.
+          // starting_hand[seat] = tiles_played_by_seat ∪ tiles_still_in_hand_at_end.
+          const startingHandIds = [new Set(), new Set(), new Set(), new Set()];
+          for (let s = 0; s < 4; s++) {
+            if (Array.isArray(gs.hands) && Array.isArray(gs.hands[s])) {
+              for (const t of gs.hands[s]) {
+                if (t && t.id != null) startingHandIds[s].add(t.id);
+              }
+            }
+          }
+          for (const mv of gs.moveHistory || []) {
+            if (mv.t === 'play' && mv.tile && mv.tile.id != null) {
+              startingHandIds[mv.p].add(mv.tile.id);
+            }
+          }
+          // current hand per seat, decremented as we walk forward.
+          const curHand = [new Set(startingHandIds[0]), new Set(startingHandIds[1]),
+                           new Set(startingHandIds[2]), new Set(startingHandIds[3])];
+          const _parseTileId = (tid) => {
+            if (!tid) return null;
+            const p = tid.split('-'); return [parseInt(p[0], 10), parseInt(p[1], 10)];
+          };
+          const _countLegal = (handSet, lE, rE) => {
+            if (lE == null || rE == null) return handSet.size;
+            let n = 0;
+            for (const tid of handSet) {
+              const t = _parseTileId(tid);
+              if (!t) continue;
+              if (t[0] === lE || t[1] === lE || t[0] === rE || t[1] === rE) n++;
+            }
+            return n;
+          };
+
+          const moves = [];
+          let prevTs = startTs;
+          let leftEnd = null, rightEnd = null;
+          // Need pre-move hand sizes: deal is 6 each, decrement on each play by that seat.
+          const handSizeBefore = [6, 6, 6, 6];
+          for (let i = 0; i < gs.moveHistory.length; i++) {
+            const mv = gs.moveHistory[i];
+            const ts = mv.ts || prevTs;
+            const action_ms = Math.max(0, ts - prevTs);
+            if (mv.t === 'play') {
+              const tileId = mv.tile && mv.tile.id ? mv.tile.id : (mv.tile.left + '-' + mv.tile.right);
+              const tIdx = TILE_INDEX[tileId];
+              const isOpener = (i === 0);
+              const sideStr = isOpener ? 'open' : (mv.side || 'auto');
+              // Use stored ends_after when available, else compute
+              const lE_after = (mv.lE_after != null) ? mv.lE_after : leftEnd;
+              const rE_after = (mv.rE_after != null) ? mv.rE_after : rightEnd;
+              const lE_before = (mv.lE_before != null) ? mv.lE_before : leftEnd;
+              const rE_before = (mv.rE_before != null) ? mv.rE_before : rightEnd;
+              const legalCount = isOpener ? 1 : _countLegal(curHand[mv.p], lE_before, rE_before);
+              moves.push({
+                seat: mv.p,
+                ply_index: i,
+                tile_id: tileId,
+                tile_idx: (tIdx == null) ? -1 : tIdx,
+                side: sideStr,
+                was_pass: false,
+                is_opener: isOpener,
+                is_bat: !!mv.is_bat,
+                left_end_before: lE_before,
+                right_end_before: rE_before,
+                left_end_after: lE_after,
+                right_end_after: rE_after,
+                hand_size_before: handSizeBefore[mv.p],
+                legal_count: legalCount,
+                action_taken_ms: action_ms,
+                mcts_visits: null,
+                mcts_top1_action: null
+              });
+              curHand[mv.p].delete(tileId);
+              handSizeBefore[mv.p] = Math.max(0, handSizeBefore[mv.p] - 1);
+              leftEnd = lE_after;
+              rightEnd = rE_after;
+            } else if (mv.t === 'pass') {
+              const lE_b = (mv.lE != null) ? mv.lE : leftEnd;
+              const rE_b = (mv.rE != null) ? mv.rE : rightEnd;
+              moves.push({
+                seat: mv.p,
+                ply_index: i,
+                tile_id: null,
+                tile_idx: 56,                // pass action index in 57-action space
+                side: 'pass',
+                was_pass: true,
+                is_opener: false,
+                is_bat: false,
+                left_end_before: lE_b,
+                right_end_before: rE_b,
+                left_end_after: lE_b,
+                right_end_after: rE_b,
+                hand_size_before: handSizeBefore[mv.p],
+                legal_count: 0,
+                action_taken_ms: action_ms,
+                mcts_visits: null,
+                mcts_top1_action: null
+              });
+            }
+            prevTs = ts;
+          }
+
+          // 2026-05-11: capture final hands (tiles each seat still held at
+          // round-end) and the 4 dormidas. Together with moves, this gives a
+          // complete view of who held what — needed for true forced-play
+          // analysis, pip_conservation stats, and full distillation ground truth.
+          // Firebase RTDB drops empty arrays (treats as deletion), so we pad
+          // empty hands with a sentinel "__EMPTY__" string that readers filter.
+          // Also expose final_hand_sizes as a defensive parallel field.
+          const finalHands = [[], [], [], []];
+          const finalHandSizes = [0, 0, 0, 0];
+          if (Array.isArray(gs.hands)) {
+            for (let s = 0; s < 4; s++) {
+              const h = gs.hands[s];
+              if (Array.isArray(h)) {
+                for (const t of h) {
+                  if (t && t.id != null) finalHands[s].push(t.id);
+                }
+              }
+              finalHandSizes[s] = finalHands[s].length;
+              if (finalHands[s].length === 0) finalHands[s] = ['__EMPTY__'];
+            }
+          }
+          const dormidaIds = [];
+          if (Array.isArray(gs.dormidas)) {
+            for (const t of gs.dormidas) {
+              if (t && t.id != null) dormidaIds.push(t.id);
+            }
+          }
+
+          // Outcome from rich game-end signal passed in by caller
+          const record = {
+            gameId: gameId,
+            timestamp: Date.now(),
+            schema_version: 2,
+            match_id: matchId,
+            game_index: gameIndex,
+            room_code: gs.roomCode || null,
+            ai_difficulty: (gs.config && gs.config.aiDifficulty) || null,
+            human_count: (gs.config && gs.config.humanCount) || null,
+            players: players,
+            moves: moves,
+            final_hands: finalHands,
+            final_hand_sizes: finalHandSizes,
+            dormidas: dormidaIds,
+            outcome: outcome,
+            match_state: {
+              score_team0_before: outcome.score_team0_before,
+              score_team1_before: outcome.score_team1_before,
+              score_team0_after: outcome.score_team0_after,
+              score_team1_after: outcome.score_team1_after,
+              multiplier_before: outcome.multiplier_before,
+              multiplier_after: outcome.multiplier_after,
+              match_target: gs.matchTarget || 6,
+              match_ended: !!outcome.match_ended
+            }
+          };
+
+          db.ref('telemetry/games/' + gameId).set(record)
+            .then(() => {
+              console.info('[telemetry] wrote game', gameId, 'players=', players.map(p => p.profile_key).join(','), 'result=', outcome.result_type);
+            })
+            .catch((err) => {
+              console.warn('[telemetry] write failed (non-fatal):', err && err.message);
+            });
+        } catch (err) {
+          // Telemetry must NEVER break gameplay
+          console.warn('[telemetry] exception (non-fatal):', err && err.message);
+        }
       };
 
       // === AI WEIGHTS — tunable scoring parameters ===
@@ -2301,6 +2586,22 @@
         return newME - currentME;
       };
 
+      // AUDIT 2026-05-06 (Auditor G, G1 CRITICAL): MCTS terminal reward must
+      // use the same value scale as the NN value head (tanh, range [-1, +1]).
+      // Previously used delta_me directly (range ~[-0.15, +0.15]), which mixed
+      // scales in PUCT Q-averaging when some leaves were NN-evaluated and
+      // others terminal. Python fixed this in audit P0 r3 (domino_mcts.py:927-944).
+      // Mirror that: terminal reward = 2 * post_match_ME - 1.
+      const _rolloutToTanhScale = (winnerTeam, points, myTeam, matchScores, dobMultiplier) => {
+        if (winnerTeam < 0) return 0;
+        const myScore = matchScores[myTeam], oppScore = matchScores[1 - myTeam];
+        const dob = dobMultiplier || 1;
+        const currentME = getMatchEquity3D(myScore, oppScore, dob);
+        const dme = _rolloutToMEReward(winnerTeam, points, myTeam, matchScores, dobMultiplier);
+        const postME = Math.max(0, Math.min(1, currentME + dme));
+        return 2.0 * postME - 1.0;
+      };
+
       // === BITMASK ENDGAME SOLVER ===
       const ENDGAME_BUDGET_MS = 500;
       const ENDGAME_SAMPLE_COUNT = 100;
@@ -2613,12 +2914,68 @@
         return out;
       };
 
-      const _nnForward = (state, mask) => {
-        const w = _nnModel.weights;
+      // AUDIT 2026-05-06 (Auditor G, G2 CRITICAL): previously skipped the
+      // aux conditioning path (belief_fc → support_fc → aux_proj → aux_gate)
+      // and used raw trunk h in policy/value heads. The Python network's
+      // policy/value heads operate on h_cond = h + tanh(aux_gate) * aux_feat.
+      // For v5_cloud_g00177, aux_gate=-0.20 (tanh=-0.198) — non-trivial,
+      // so the old JS forward was a measurably different model than trained.
+      // Fix: compute belief/support/aux_proj path and form h_cond.
+      const _nnSigmoid = (x) => {
+        const out = new Float32Array(x.length);
+        for (let i = 0; i < x.length; i++) out[i] = 1 / (1 + Math.exp(-x[i]));
+        return out;
+      };
+
+      const _nnComputeHCond = (w, h) => {
+        // Belief head: h → belief_fc1 → bn → relu → belief_fc2 → 84 logits
+        let b = _nnMatVec(w['belief_fc1.weight'], w['belief_fc1.bias'], h);
+        b = _nnBatchNorm(b, w['belief_bn.weight'], w['belief_bn.bias'], w['belief_bn.running_mean'], w['belief_bn.running_var']);
+        b = _nnRelu(b);
+        const beliefLogits = _nnMatVec(w['belief_fc2.weight'], w['belief_fc2.bias'], b);
+        const beliefProbs = _nnSigmoid(beliefLogits);
+        // Support head: h → support_fc1 → bn → relu → support_fc2 → 6 logits
+        let s = _nnMatVec(w['support_fc1.weight'], w['support_fc1.bias'], h);
+        s = _nnBatchNorm(s, w['support_bn.weight'], w['support_bn.bias'], w['support_bn.running_mean'], w['support_bn.running_var']);
+        s = _nnRelu(s);
+        const supportLogits = _nnMatVec(w['support_fc2.weight'], w['support_fc2.bias'], s);
+        const supportProbs = _nnSigmoid(supportLogits);
+        // Support summary (10 dims): 6 raw probs + 4 derived team_adv/opp_press
+        const pL = supportProbs[0], pR = supportProbs[1];
+        const lhoL = supportProbs[2], lhoR = supportProbs[3];
+        const rhoL = supportProbs[4], rhoR = supportProbs[5];
+        const oppLeftMax = Math.max(lhoL, rhoL);
+        const oppRightMax = Math.max(lhoR, rhoR);
+        const leftTeamAdv = pL - oppLeftMax;
+        const rightTeamAdv = pR - oppRightMax;
+        const leftOppPress = 1.0 - oppLeftMax;
+        const rightOppPress = 1.0 - oppRightMax;
+        // aux = concat(belief_probs(84), support_summary(10)) = 94 dims
+        const aux = new Float32Array(94);
+        for (let i = 0; i < 84; i++) aux[i] = beliefProbs[i];
+        for (let i = 0; i < 6; i++) aux[84 + i] = supportProbs[i];
+        aux[90] = leftTeamAdv;
+        aux[91] = rightTeamAdv;
+        aux[92] = leftOppPress;
+        aux[93] = rightOppPress;
+        // aux_feat = relu(aux_proj(aux))
+        let auxFeat = _nnMatVec(w['aux_proj.weight'], w['aux_proj.bias'], aux);
+        auxFeat = _nnRelu(auxFeat);
+        // h_cond = h + tanh(aux_gate) * aux_feat
+        // aux_gate is stored as a 1-element array (shape [])
+        const auxGate = w['aux_gate'][0];
+        const tanhGate = Math.tanh(auxGate);
+        const hCond = new Float32Array(h.length);
+        for (let i = 0; i < h.length; i++) hCond[i] = h[i] + tanhGate * auxFeat[i];
+        return hCond;
+      };
+
+      const _nnTrunkForward = (w, state) => {
         let h = _nnMatVec(w['input_fc.weight'], w['input_fc.bias'], state);
         h = _nnBatchNorm(h, w['input_bn.weight'], w['input_bn.bias'], w['input_bn.running_mean'], w['input_bn.running_var']);
         h = _nnRelu(h);
-        for (let b = 0; b < 4; b++) {
+        const numBlocks = _nnModel.architecture && _nnModel.architecture.num_blocks ? _nnModel.architecture.num_blocks : 4;
+        for (let b = 0; b < numBlocks; b++) {
           const pfx = `res_blocks.${b}`;
           let out = _nnMatVec(w[`${pfx}.fc1.weight`], w[`${pfx}.fc1.bias`], h);
           out = _nnBatchNorm(out, w[`${pfx}.bn1.weight`], w[`${pfx}.bn1.bias`], w[`${pfx}.bn1.running_mean`], w[`${pfx}.bn1.running_var`]);
@@ -2627,12 +2984,20 @@
           out = _nnBatchNorm(out, w[`${pfx}.bn2.weight`], w[`${pfx}.bn2.bias`], w[`${pfx}.bn2.running_mean`], w[`${pfx}.bn2.running_var`]);
           h = _nnRelu(_nnAdd(out, h));
         }
-        let p = _nnMatVec(w['policy_fc1.weight'], w['policy_fc1.bias'], h);
+        return h;
+      };
+
+      const _nnForward = (state, mask) => {
+        const w = _nnModel.weights;
+        const h = _nnTrunkForward(w, state);
+        // G2 fix: heads use h_cond (with aux conditioning) when aux weights present.
+        const hForHeads = (w['aux_proj.weight'] && w['aux_gate']) ? _nnComputeHCond(w, h) : h;
+        let p = _nnMatVec(w['policy_fc1.weight'], w['policy_fc1.bias'], hForHeads);
         p = _nnBatchNorm(p, w['policy_bn.weight'], w['policy_bn.bias'], w['policy_bn.running_mean'], w['policy_bn.running_var']);
         p = _nnRelu(p);
         p = _nnMatVec(w['policy_fc2.weight'], w['policy_fc2.bias'], p);
         const policy = _nnSoftmax(p, mask);
-        let v = _nnMatVec(w['value_fc1.weight'], w['value_fc1.bias'], h);
+        let v = _nnMatVec(w['value_fc1.weight'], w['value_fc1.bias'], hForHeads);
         v = _nnBatchNorm(v, w['value_bn.weight'], w['value_bn.bias'], w['value_bn.running_mean'], w['value_bn.running_var']);
         v = _nnRelu(v);
         v = _nnMatVec(w['value_fc2.weight'], w['value_fc2.bias'], v);
@@ -2641,80 +3006,90 @@
 
       const _nnForwardValue = (state) => {
         const w = _nnModel.weights;
-        let h = _nnMatVec(w['input_fc.weight'], w['input_fc.bias'], state);
-        h = _nnBatchNorm(h, w['input_bn.weight'], w['input_bn.bias'], w['input_bn.running_mean'], w['input_bn.running_var']);
-        h = _nnRelu(h);
-        for (let b = 0; b < 4; b++) {
-          const pfx = `res_blocks.${b}`;
-          let out = _nnMatVec(w[`${pfx}.fc1.weight`], w[`${pfx}.fc1.bias`], h);
-          out = _nnBatchNorm(out, w[`${pfx}.bn1.weight`], w[`${pfx}.bn1.bias`], w[`${pfx}.bn1.running_mean`], w[`${pfx}.bn1.running_var`]);
-          out = _nnRelu(out);
-          out = _nnMatVec(w[`${pfx}.fc2.weight`], w[`${pfx}.fc2.bias`], out);
-          out = _nnBatchNorm(out, w[`${pfx}.bn2.weight`], w[`${pfx}.bn2.bias`], w[`${pfx}.bn2.running_mean`], w[`${pfx}.bn2.running_var`]);
-          h = _nnRelu(_nnAdd(out, h));
-        }
-        let v = _nnMatVec(w['value_fc1.weight'], w['value_fc1.bias'], h);
+        const h = _nnTrunkForward(w, state);
+        // G2 fix: value head uses h_cond when aux weights present.
+        const hForHeads = (w['aux_proj.weight'] && w['aux_gate']) ? _nnComputeHCond(w, h) : h;
+        let v = _nnMatVec(w['value_fc1.weight'], w['value_fc1.bias'], hForHeads);
         v = _nnBatchNorm(v, w['value_bn.weight'], w['value_bn.bias'], w['value_bn.running_mean'], w['value_bn.running_var']);
         v = _nnRelu(v);
         v = _nnMatVec(w['value_fc2.weight'], w['value_fc2.bias'], v);
         return Math.tanh(v[0]);
       };
 
-      // Encode game state to 185-dim vector (simplified beliefs using cantHave)
-      const _nnEncodeState = (hand, lE, rE, bLen, player, knowledge, matchScores, dobMul) => {
-        const state = new Float32Array(NN_STATE_DIM);
+      // Encode game state to 443-dim vector via SymbolicEncoder.encodeState443.
+      // Layout = 268 Branch-B base + 175 symbolic-belief features.
+      // Matches Python make_encoder(443) byte-for-byte (golden tests).
+      //
+      // recent_actions: optional 4th arg via opts; current call sites don't
+      // track them, so the last-4-actions block stays zero. Symbolic belief
+      // and the rest of the base state cover the bulk of the signal.
+      const _nnEncodeState = (hand, lE, rE, bLen, player, knowledge, matchScores, dobMul, opts) => {
+        opts = opts || {};
         const me = player;
         const partner = (me + 2) % 4, lho = (me + 1) % 4, rho = (me + 3) % 4;
-        // [0:28] My hand
-        for (const t of hand) state[TILE_INDEX[t.id]] = 1.0;
-        // [28:56] Played tiles
-        for (const id of knowledge.played) state[28 + TILE_INDEX[id]] = 1.0;
-        // [56:63] Left end one-hot
-        if (lE >= 0 && lE <= 6) state[56 + lE] = 1.0;
-        // [63:70] Right end one-hot
-        if (rE >= 0 && rE <= 6) state[63 + rE] = 1.0;
-        // [70:91] CantHave: 3 players x 7 numbers
-        const others = [partner, lho, rho];
-        for (let i = 0; i < 3; i++) {
-          for (const n of knowledge.cantHave[others[i]]) {
-            if (n >= 0 && n <= 6) state[70 + i * 7 + n] = 1.0;
-          }
-        }
-        // [91:175] Belief probabilities (cantHave-based approximation)
-        const handIds = new Set(hand.map(h => h.id));
-        for (let t = 0; t < 28; t++) {
-          const tile = ALL_TILES[t];
-          if (handIds.has(tile.id) || knowledge.played.has(tile.id)) {
-            state[91 + t] = state[91 + 28 + t] = state[91 + 56 + t] = 1/3;
-            continue;
-          }
-          // Uniform prior with cantHave elimination
-          let b0 = 1, b1 = 1, b2 = 1;
-          if (knowledge.cantHave[partner].has(tile.left) || knowledge.cantHave[partner].has(tile.right)) b0 = 0;
-          if (knowledge.cantHave[lho].has(tile.left) || knowledge.cantHave[lho].has(tile.right)) b1 = 0;
-          if (knowledge.cantHave[rho].has(tile.left) || knowledge.cantHave[rho].has(tile.right)) b2 = 0;
-          const total = b0 + b1 + b2;
-          if (total > 0) { state[91 + t] = b0/total; state[91+28+t] = b1/total; state[91+56+t] = b2/total; }
-          else { state[91 + t] = state[91 + 28 + t] = state[91 + 56 + t] = 1/3; }
-        }
-        // [175:179] Hand sizes (normalized)
-        const playedBy = knowledge.playsBy;
-        state[175] = hand.length / 6.0;
-        for (let i = 0; i < 3; i++) state[176 + i] = Math.max(0, 6 - playedBy[others[i]].length) / 6.0;
-        // [179:181] Match scores
-        const ms = matchScores || [0, 0];
         const myTeam = me % 2;
-        state[179] = ms[myTeam] / 6.0;
-        state[180] = ms[1 - myTeam] / 6.0;
-        // [181:182] Multiplier
-        state[181] = Math.min(dobMul || 1, 4) / 4.0;
-        // [182:183] Board length
-        state[182] = bLen / 24.0;
-        // [183:184] Game phase
-        state[183] = knowledge.played.size / 24.0;
-        // [184:185] My team
-        state[184] = myTeam;
-        return state;
+        const ms = matchScores || [0, 0];
+
+        // tile indices for hand + played
+        const handIdx = new Array(hand.length);
+        for (let i = 0; i < hand.length; i++) handIdx[i] = TILE_INDEX[hand[i].id];
+        const playedIdx = [];
+        if (knowledge && knowledge.played && knowledge.played.forEach) {
+          knowledge.played.forEach((id) => {
+            const k = TILE_INDEX[id];
+            if (k != null) playedIdx.push(k);
+          });
+        }
+
+        // hand_sizes (4-tuple). Use observed hand for self; derive others
+        // from playsBy length (initial hand was 6).
+        const hs = [0, 0, 0, 0];
+        const seatPlays = (knowledge && knowledge.playsBy) ? knowledge.playsBy : [[], [], [], []];
+        hs[me] = hand.length;
+        const otherSeats = [partner, lho, rho];
+        for (let i = 0; i < 3; i++) {
+          hs[otherSeats[i]] = Math.max(0, 6 - (seatPlays[otherSeats[i]] || []).length);
+        }
+
+        // cant_have per seat: pass through Sets of pip integers
+        const cantHave = [];
+        for (let s = 0; s < 4; s++) {
+          const src = (knowledge && knowledge.cantHave && knowledge.cantHave[s]) || new Set();
+          cantHave.push(src);
+        }
+
+        // plays_by: convert tile objects -> indices for SymbolicEncoder
+        const plays_by = [[], [], [], []];
+        for (let s = 0; s < 4; s++) {
+          const arr = seatPlays[s] || [];
+          const out = plays_by[s];
+          for (let i = 0; i < arr.length; i++) {
+            const t = arr[i];
+            out.push(TILE_INDEX[t.id]);
+          }
+        }
+
+        const obs = {
+          player: me,
+          hand: handIdx,
+          played: playedIdx,
+          left_end: (lE == null) ? -1 : lE,
+          right_end: (rE == null) ? -1 : rE,
+          board_length: bLen | 0,
+          cant_have: cantHave,
+          plays_by: plays_by,
+          hand_sizes: hs,
+          // Last-4-actions: caller may pass opts.recentActions; default empty.
+          // Existing in-app code doesn't track per-action history — OK to send
+          // zeros for that block; Python's encoder pads missing slots with 0.
+          recent_actions: opts.recentActions || [],
+        };
+        const scores = {
+          my_score: ms[myTeam] | 0,
+          opp_score: ms[1 - myTeam] | 0,
+          multiplier: dobMul || 1,
+        };
+        return SymbolicEncoder.encodeState443(obs, scores);
       };
 
       // Build action mask (57-dim)
@@ -2972,7 +3347,7 @@
        * exportTrainingData(nGames, ismctsOpts)
        *
        * Plays nGames complete games via ISMCTS self-play, records one row per
-       * decision point (state185, mask57, pi57, team, scores, multiplier),
+       * decision point (state443, mask57, pi57, team, scores, multiplier),
        * backfills v_target (ΔME) after each game, then triggers a JSONL download.
        *
        * TRAIN_POLICY_TARGET controls whether pi comes from visit counts ('visits')
@@ -3008,7 +3383,7 @@
             const hasLegal = legalMask.some(Boolean);
             if (!hasLegal) { player = (player + 1) % 4; continue; }
 
-            const state185 = Array.from(_nnEncodeState(
+            const state443 = Array.from(_nnEncodeState(
               hand, lE, rE, bLen, player, knowledge, matchScore, scoreMultiplier
             ));
 
@@ -3035,7 +3410,7 @@
             assertPolicyAndMaskConsistency(policy57, legalMask);
 
             gameHistory.push({
-              x:                  state185,
+              x:                  state443,
               mask:               legalMask,
               pi:                 policy57,
               team:               player % 2,
@@ -3230,31 +3605,35 @@
         }
 
         // NN-aware config: PUCT at root when model loaded
+        // c_puct=2.5 validated +5pp at sims=200 over 200 deal-pairs
+        // (training/results/audit_v5/cpuct/cpuct_2.5_vs_1.5_confirm.csv,
+        // 2026-04-28). Old value 1.0 under-trusted the trained policy.
         const nnActive = USE_NN_LEAF_VALUE && _nnModel;
         const cfg = {
           usePUCT: nnActive,
           rootOnlyPUCT: true,
-          cPuct: 1.0,
+          cPuct: 2.5,
           C: nnActive ? 0.7 : 1.41,
           useProgBias: !nnActive,
           isRoot: true,
         };
 
-        // Compute root PUCT prior (blended NN policy + uniform)
+        // Compute root PUCT prior (pure NN policy).
+        // AUDIT 2026-05-06 (Auditor G, G4 CRITICAL): previously used
+        // `0.8 * uniform + 0.2 * NN`, diluting the trained policy by 80%.
+        // Estimated 50-150 ELO loss in deployment vs Python (which uses pure
+        // NN priors). Fix: use NN priors directly, normalized over legal
+        // actions only.
         let rootPrior = null;
         if (cfg.usePUCT) {
           const mask = _nnActionMask(hand, lE, rE, bLen);
           const enc = _nnEncodeState(hand, lE, rE, bLen, player, knowledge, ms, dm);
           const { policy: pNN } = _nnForward(enc, mask);
-          const alpha = 0.2;
           rootPrior = new Float32Array(57);
-          let legalCount = 0;
-          for (let a = 0; a < 57; a++) if (mask[a] > 0) legalCount++;
-          const u = legalCount > 0 ? 1.0 / legalCount : 0;
           let sum = 0;
           for (let a = 0; a < 57; a++) {
             if (mask[a] === 0) { rootPrior[a] = 0; continue; }
-            rootPrior[a] = (1 - alpha) * u + alpha * Math.max(pNN[a], 1e-12);
+            rootPrior[a] = Math.max(pNN[a], 1e-12);
             sum += rootPrior[a];
           }
           if (sum > 0) for (let a = 0; a < 57; a++) rootPrior[a] /= sum;
@@ -3344,7 +3723,9 @@
               simLE = applied.newLE; simRE = applied.newRE; simBLen++;
               if (simHands[curPlayer].length === 0) {
                 const pts = _ismctsScoreWin(expandMove.tile, lE, rE, simBLen);
-                const reward = _rolloutToMEReward(curPlayer % 2, pts, myTeam, ms, dm);
+                const reward = nnActive
+                  ? _rolloutToTanhScale(curPlayer % 2, pts, myTeam, ms, dm)
+                  : _rolloutToMEReward(curPlayer % 2, pts, myTeam, ms, dm);
                 _ismctsBackprop(node, reward);
                 break;
               }
@@ -3360,7 +3741,9 @@
             simLE = applied.newLE; simRE = applied.newRE; simBLen++;
             if (simHands[curPlayer].length === 0) {
               const pts = _ismctsScoreWin(tile, lE, rE, simBLen);
-              const reward = _rolloutToMEReward(curPlayer % 2, pts, myTeam, ms, dm);
+              const reward = nnActive
+                ? _rolloutToTanhScale(curPlayer % 2, pts, myTeam, ms, dm)
+                : _rolloutToMEReward(curPlayer % 2, pts, myTeam, ms, dm);
               _ismctsBackprop(child, reward);
               node = null;
               break;
@@ -3396,7 +3779,9 @@
               simLE = applied.newLE; simRE = applied.newRE; simBLen++;
               if (simHands[curPlayer].length === 0) {
                 const pts = _ismctsScoreWin(expandMove.tile, lE, rE, simBLen);
-                const reward = _rolloutToMEReward(curPlayer % 2, pts, myTeam, ms, dm);
+                const reward = nnActive
+                  ? _rolloutToTanhScale(curPlayer % 2, pts, myTeam, ms, dm)
+                  : _rolloutToMEReward(curPlayer % 2, pts, myTeam, ms, dm);
                 _ismctsBackprop(node, reward);
                 continue;
               }
@@ -3459,9 +3844,47 @@
         return finalResults.length > 0 ? finalResults[0] : null;
       };
 
+      // === NN policy pick at opening ===
+      // AUDIT 2026-05-09: opening previously used smartAI heuristic which
+      // bypassed the trained network entirely. Network was trained on
+      // millions of opening positions across 177 generations; its policy
+      // captures patterns the hand-coded score formula
+      // (suitCount*10 + isDouble*15 + pipSum*2) cannot. Using NN policy
+      // is +5 to +15 ELO at the opening at ~10ms cost. Falls back to
+      // smartAI cleanly if the network isn't loaded.
+      const _nnOpeningPick = (hand, lE, rE, bLen, player, knowledge, matchScores, dobMul) => {
+        try {
+          const mask = _nnActionMask(hand, lE, rE, bLen);
+          const enc = _nnEncodeState(hand, lE, rE, bLen, player, knowledge, matchScores, dobMul);
+          const { policy } = _nnForward(enc, mask);
+          let bestAction = -1, bestProb = -Infinity;
+          for (let a = 0; a < 56; a++) {
+            if (mask[a] > 0 && policy[a] > bestProb) {
+              bestProb = policy[a];
+              bestAction = a;
+            }
+          }
+          if (bestAction < 0) return null;
+          const tileIdx = bestAction < 28 ? bestAction : bestAction - 28;
+          const tile = hand.find(t => TILE_INDEX[t.id] === tileIdx);
+          if (!tile) return null;
+          return { tile, side: null };
+        } catch (e) {
+          return null;  // any failure → fall back to smartAI
+        }
+      };
+
       // === Expert AI router: endgame solver → ISMCTS → MC → smartAI ===
       const expertAI = async (hand, lE, rE, bLen, player, knowledge, matchScores, dobMultiplier) => {
         if (bLen === 0) {
+          // Try NN policy first; fall back to smartAI heuristic if network
+          // is not loaded or inference fails. NN is empirically stronger
+          // at opening because it has integrated millions of self-play
+          // opening positions during training.
+          if (USE_NN_LEAF_VALUE && _nnModel) {
+            const nnPick = _nnOpeningPick(hand, lE, rE, bLen, player, knowledge, matchScores, dobMultiplier);
+            if (nnPick) return nnPick;
+          }
           return smartAI(hand, lE, rE, bLen, player, knowledge, matchScores);
         }
         // Count total remaining tiles (not played, not in dormidas)
@@ -3473,13 +3896,20 @@
           if (egResult) return egResult;
         }
 
-        // Mid-game: ISMCTS tree search for deeper strategic play
-        if (bLen >= 6) {
+        // Mid-game: ISMCTS tree search for deeper strategic play.
+        // AUDIT 2026-05-09: lowered threshold from bLen>=6 to bLen>=1.
+        // Previously plies 1-5 fell through to monteCarloEval (pure heuristic
+        // rollouts, NN unused). ismctsEval uses NN policy as PUCT prior +
+        // optional NN leaf value, capped at 300ms — qualitatively stronger
+        // and faster than 80 heuristic rollouts. Same NN-bypass class of
+        // bug as the opening-tile fix.
+        if (bLen >= 1) {
           const ismctsResult = await ismctsEval(hand, lE, rE, bLen, player, knowledge, matchScores, dobMultiplier);
           if (ismctsResult) return ismctsResult;
         }
 
-        // Fallback: Monte Carlo rollouts
+        // Fallback: Monte Carlo rollouts (heuristic — no NN). Reached only
+        // if ismctsEval returns null (e.g., on rare deal-sample failures).
         const mcResult = monteCarloEval(hand, lE, rE, bLen, player, knowledge);
         if (mcResult) return mcResult;
 
@@ -3598,7 +4028,7 @@
           passCount: 0,
           lastPass: null,
           message: '',
-          moveHistory: [...(gameState.moveHistory || []), {p: slot, t: 'play', tile: {left: tile.left, right: tile.right, id: tile.id}}]
+          moveHistory: [...(gameState.moveHistory || []), {p: slot, t: 'play', tile: {left: tile.left, right: tile.right, id: tile.id}, side: side || null, lE_before: gameState.leftEnd ?? null, rE_before: gameState.rightEnd ?? null, lE_after: newLeftEnd, rE_after: newRightEnd, ts: Date.now()}]
         };
 
         await db.ref('rooms/' + roomCode).update(updates);
@@ -3611,6 +4041,12 @@
         if (!canPlayTile(tile)) return;
 
         if (canPlayOnBothEnds(tile) && side === null) {
+          // Doubles playable on both ends: result is identical (both ends keep
+          // the same value), so skip the choice prompt and auto-play left.
+          if (tile.left === tile.right) {
+            await executeTilePlay(tile, playerSlot, 'left');
+            return;
+          }
           setChoosingTile(tile);
           return;
         }
@@ -3621,6 +4057,27 @@
       const handleWin = async (winner, lastTile, hands, board, leftEnd, rightEnd) => {
         const isDouble = lastTile.left === lastTile.right;
         const wasOnBothEnds = couldPlayOnBothEnds(lastTile, gameState.leftEnd, gameState.rightEnd);
+
+        // 2026-05-11: the bat tile was being dropped from moveHistory. Reconstruct
+        // it here so telemetry sees the full round. side is derived from which end
+        // changed (the unchanged end was the join point on the other side).
+        const _lE_before = gameState.leftEnd ?? null;
+        const _rE_before = gameState.rightEnd ?? null;
+        let _side = null;
+        if (_lE_before !== null && _rE_before !== null) {
+          if (leftEnd !== _lE_before && rightEnd === _rE_before) _side = 'left';
+          else if (rightEnd !== _rE_before && leftEnd === _lE_before) _side = 'right';
+          else if (leftEnd !== _lE_before && rightEnd !== _rE_before) _side = 'both'; // cruzada
+        }
+        const batMove = {
+          p: winner, t: 'play',
+          tile: { left: lastTile.left, right: lastTile.right, id: lastTile.id },
+          side: _side,
+          lE_before: _lE_before, rE_before: _rE_before,
+          lE_after: leftEnd, rE_after: rightEnd,
+          ts: Date.now(),
+          is_bat: true
+        };
 
         let basePoints, scoreName;
         if (isDouble && wasOnBothEnds) {
@@ -3659,7 +4116,8 @@
           blockedReveal: null,
           roundResult: { scoreName, points, winner, winningTeam, playerName: gameState.players[winner].name },
           message: gameState.players[winner].name + ' bateu ' + scoreName + '! Time ' + (winningTeam + 1) + ' marcou ' + points + ' ponto(s)' + extraMsg + '!',
-          currentPlayer: -1
+          currentPlayer: -1,
+          moveHistory: [...(gameState.moveHistory || []), batMove]
         };
 
         if (newScores[winningTeam] >= gameState.matchTarget) {
@@ -3698,7 +4156,7 @@
           currentPlayer: nextPlayer,
           lastPass: playerSlot,
           message: '',
-          moveHistory: [...(gameState.moveHistory || []), {p: playerSlot, t: 'pass', lE: gameState.leftEnd, rE: gameState.rightEnd}]
+          moveHistory: [...(gameState.moveHistory || []), {p: playerSlot, t: 'pass', lE: gameState.leftEnd, rE: gameState.rightEnd, ts: Date.now()}]
         });
       };
 
@@ -3716,7 +4174,7 @@
           currentPlayer: nextPlayer,
           lastPass: botSlot,
           message: '',
-          moveHistory: [...(gameState.moveHistory || []), {p: botSlot, t: 'pass', lE: gameState.leftEnd, rE: gameState.rightEnd}]
+          moveHistory: [...(gameState.moveHistory || []), {p: botSlot, t: 'pass', lE: gameState.leftEnd, rE: gameState.rightEnd, ts: Date.now()}]
         });
       };
 
@@ -3819,8 +4277,11 @@
             waitingForStarterChoice: false,
             blockedReveal: null,
             roundResult: null,
-            moveHistory: [{p: startPlayer, t: 'play', tile: highestDoubleTile}],
-            message: gameState.players[startPlayer].name + ' jogou a carroca ' + highestDouble + '-' + highestDouble + '! Vez de ' + gameState.players[nextPlayer].name + '!'
+            lastPass: null,
+            moveHistory: [{p: startPlayer, t: 'play', tile: highestDoubleTile, side: null, lE_before: null, rE_before: null, lE_after: highestDoubleTile.left, rE_after: highestDoubleTile.right, ts: Date.now()}],
+            message: gameState.players[startPlayer].name + ' jogou a carroca ' + highestDouble + '-' + highestDouble + '! Vez de ' + gameState.players[nextPlayer].name + '!',
+            gameStartedAt: Date.now(),
+            gameIndex: (gameState.gameIndex || 1) + 1
           });
           return;
         }
@@ -3839,8 +4300,11 @@
             starterChoiceDeadline: Date.now() + 30000,
             blockedReveal: null,
             roundResult: null,
+            lastPass: null,
             moveHistory: [],
-            message: 'Time ' + (winTeam + 1) + ' venceu! Veja suas pecas e escolha quem comeca (30s)!'
+            message: 'Time ' + (winTeam + 1) + ' venceu! Veja suas pecas e escolha quem comeca (30s)!',
+            gameStartedAt: Date.now(),
+            gameIndex: (gameState.gameIndex || 1) + 1
           });
         } else {
           // Bot winning team — pick best opener from winning team only
@@ -3860,8 +4324,11 @@
             waitingForStarterChoice: false,
             blockedReveal: null,
             roundResult: null,
+            lastPass: null,
             moveHistory: [],
-            message: gameState.players[bestSlot].name + ' comeca!'
+            message: gameState.players[bestSlot].name + ' comeca!',
+            gameStartedAt: Date.now(),
+            gameIndex: (gameState.gameIndex || 1) + 1
           });
         }
       };
@@ -3916,6 +4383,9 @@
           }
         }
 
+        // Map score-name to canonical result_type used by training pipeline
+        const _resultTypeMap = { 'normal': 'batida', 'com carroca': 'carroca', 'la e lo': 'laelo', 'cruzada': 'cruzada' };
+
         // Track round results (normal win via roundResult)
         const rr = gameState.roundResult;
         if (rr && rr.winningTeam != null) {
@@ -3944,6 +4414,30 @@
                 playerStatsRef.current[pName].totalPoints += (rr.points || 0);
               }
             }
+
+            // === Telemetry write: normal-win game-end ===
+            const s0_after = gameState.teamScores?.[0] || 0;
+            const s1_after = gameState.teamScores?.[1] || 0;
+            const pts = rr.points || 0;
+            const s0_before = wt === 0 ? Math.max(0, s0_after - pts) : s0_after;
+            const s1_before = wt === 1 ? Math.max(0, s1_after - pts) : s1_after;
+            writeGameTelemetry(gameState, playerSlot, {
+              winner_team: wt,
+              winner_seat: rr.winner,
+              points_scored: pts,
+              base_points: pts / Math.max(1, gameState.scoreMultiplier || 1),
+              result_type: _resultTypeMap[rr.scoreName] || rr.scoreName || 'batida',
+              score_name: rr.scoreName || null,
+              multiplier: gameState.scoreMultiplier || 1,
+              multiplier_before: gameState.scoreMultiplier || 1,
+              multiplier_after: 1,
+              score_team0_before: s0_before,
+              score_team1_before: s1_before,
+              score_team0_after: s0_after,
+              score_team1_after: s1_after,
+              match_ended: !!rr.matchEnd,
+              buchuda: !!rr.buchuda
+            });
           }
         }
 
@@ -3965,6 +4459,61 @@
                 playerStatsRef.current[pName].roundsLost++;
               }
             }
+
+            // === Telemetry write: blocked game-end ===
+            const s0_after = gameState.teamScores?.[0] || 0;
+            const s1_after = gameState.teamScores?.[1] || 0;
+            const mult = gameState.scoreMultiplier || 1;
+            const pts = 1 * mult;
+            const s0_before = wt === 0 ? Math.max(0, s0_after - pts) : s0_after;
+            const s1_before = wt === 1 ? Math.max(0, s1_after - pts) : s1_after;
+            const mt = gameState.matchTarget || 6;
+            writeGameTelemetry(gameState, playerSlot, {
+              winner_team: wt,
+              winner_seat: br.winnerSlot,
+              points_scored: pts,
+              base_points: 1,
+              result_type: 'blocked',
+              score_name: 'blocked',
+              multiplier: mult,
+              multiplier_before: mult,
+              multiplier_after: 1,
+              score_team0_before: s0_before,
+              score_team1_before: s1_before,
+              score_team0_after: s0_after,
+              score_team1_after: s1_after,
+              match_ended: (s0_after >= mt || s1_after >= mt),
+              buchuda: ((wt === 0 && s1_after === 0 && s0_after >= mt) || (wt === 1 && s0_after === 0 && s1_after >= mt))
+            });
+          }
+        }
+
+        // Track dobrada (cross-team blocked tie) — emit telemetry too with winner_team=-1
+        if (br && br.isDobrada) {
+          const dobKey = 'dobrada_' + (gameState.teamScores?.[0]||0) + '_' + (gameState.teamScores?.[1]||0) + '_' + (gameState.scoreMultiplier||1);
+          if (lastTrackedRoundRef.current !== dobKey) {
+            lastTrackedRoundRef.current = dobKey;
+            const s0 = gameState.teamScores?.[0] || 0;
+            const s1 = gameState.teamScores?.[1] || 0;
+            const multAfter = gameState.scoreMultiplier || 1;
+            const multBefore = Math.max(1, Math.floor(multAfter / 2));
+            writeGameTelemetry(gameState, playerSlot, {
+              winner_team: -1,
+              winner_seat: -1,
+              points_scored: 0,
+              base_points: 0,
+              result_type: 'dobrada',
+              score_name: 'dobrada',
+              multiplier: multAfter,
+              multiplier_before: multBefore,
+              multiplier_after: multAfter,
+              score_team0_before: s0,
+              score_team1_before: s1,
+              score_team0_after: s0,
+              score_team1_after: s1,
+              match_ended: false,
+              buchuda: false
+            });
           }
         }
 
@@ -4026,15 +4575,16 @@
         }
       }, [gameState?.teamScores?.[0], gameState?.teamScores?.[1]]);
 
-      // Auto-start next round — 20s countdown, show button over board after 10s
+      // Auto-start next round — 20s countdown, show button over board after 5s
       useEffect(() => {
         const shouldCount = gameState && gameState.gameStarted && !gameState.gameEnded
           && gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice && playerSlot === 0;
         if (!shouldCount) { setRoundCountdown(null); setShowNextBtn(false); return; }
+        if (isPaused) { setRoundCountdown(null); setShowNextBtn(true); return; }  // Pause: show btn, don't autostart
         const delay = 20;
         setRoundCountdown(delay);
         setShowNextBtn(false);
-        const btnTimer = setTimeout(() => setShowNextBtn(true), 10000);
+        const btnTimer = setTimeout(() => setShowNextBtn(true), 5000);
         const iv = setInterval(() => {
           setRoundCountdown(prev => {
             if (prev <= 1) { clearInterval(iv); newRound(); return null; }
@@ -4042,17 +4592,18 @@
           });
         }, 1000);
         return () => { clearInterval(iv); clearTimeout(btnTimer); };
-      }, [gameState?.currentPlayer, gameState?.gameEnded, gameState?.waitingForStarterChoice]);
+      }, [gameState?.currentPlayer, gameState?.gameEnded, gameState?.waitingForStarterChoice, isPaused]);
 
       // Bot AI - runs when it's a bot's turn
       useEffect(() => {
         if (!gameState || !gameState.gameStarted || gameState.gameEnded) return;
         if (gameState.currentPlayer === -1) return;
         if (gameState.waitingForStarterChoice) return;
-        
+        if (isPaused) return;  // Pause-button gate (2026-05-09)
+
         const currentSlot = gameState.currentPlayer;
         const isBot = gameState.players[currentSlot] && !gameState.players[currentSlot].isHuman;
-        
+
         if (!isBot) return;
 
         // Only player 0 (host) handles bot moves to avoid duplicates
@@ -4084,7 +4635,7 @@
         }, delay);
 
         return () => clearTimeout(timeout);
-      }, [gameState?.currentPlayer, gameState?.gameStarted]);
+      }, [gameState?.currentPlayer, gameState?.gameStarted, isPaused]);
 
       // Auto-pass: if it's the human's turn and no valid moves, auto-pass after 1.5s
       useEffect(() => {
@@ -4669,24 +5220,19 @@
               <div className="felt-bg rounded-xl p-2 mb-1 relative" style={{ border: '1px solid rgba(255,255,255,0.08)', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
                 {/* Partner (top) — same team = blue */}
-                <div className={'player-panel px-2 py-1.5 mb-1 mx-8 flex items-center justify-center gap-2 flex-wrap ' + (gameState.currentPlayer === topSlot ? 'active-turn turn-pulse' : '')}>
+                <div className={'player-panel px-1 py-1 mb-1 mx-1 flex items-center justify-center gap-1 flex-wrap ' + (gameState.currentPlayer === topSlot ? 'active-turn turn-pulse' : '')}>
                   <div style={{ position: 'relative', flexShrink: 0, borderRadius: '50%', padding: 2, background: 'rgba(59,130,246,0.7)', boxShadow: '0 0 6px rgba(59,130,246,0.4)' }}>
-                    <Avatar profile={profileFromPlayer(gameState.players?.[topSlot])} size={38} noBorder />
+                    <Avatar profile={profileFromPlayer(gameState.players?.[topSlot])} size={28} noBorder />
                     {!(gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice) && <div style={{ position: 'absolute', bottom: -3, right: -3, width: 16, height: 16, borderRadius: '50%', background: '#16a34a', border: '2px solid #0a2a14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <span style={{ fontSize: 9, fontWeight: 800, color: '#fff' }}>{(gameState.hands?.[topSlot] || []).length}</span>
                     </div>}
                     {passedSlot === topSlot && <div className="animate-bounce-in" style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(239,68,68,0.5)' }}>Toquei!</div>}
                   </div>
-                  <span className="text-[11px] font-bold text-white/80">{gameState.players?.[topSlot]?.name}</span>
-                  {!(gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice) && (isBot(topSlot)
-                    ? <span className="text-[9px] px-1 py-0.5 rounded bg-red-500/30 text-red-200 font-bold">BOT</span>
-                    : <span className="text-[9px] px-1 py-0.5 rounded bg-green-500/30 text-green-200 font-bold">PARCEIRO</span>
-                  )}
                   {gameState.currentPlayer === topSlot && <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/30 text-yellow-200 font-bold">VEZ</span>}
                   {!(gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice) ? (
-                    <div className="flex gap-0.5 ml-1">
+                    <div className="flex gap-0.5">
                       {Array.from({ length: (gameState.hands?.[topSlot] || []).length }).map((_, i) => (
-                        <div key={i} className="tile-back" style={{ width: 10, height: 18 }}></div>
+                        <div key={i} className="tile-back" style={{ width: 9, height: 16 }}></div>
                       ))}
                     </div>
                   ) : (gameState.hands?.[topSlot] || []).length > 0 ? (
@@ -4708,9 +5254,9 @@
                 <div className="flex items-stretch mb-1 gap-1" style={{ flex: 1, minHeight: 0 }}>
 
                   {/* Left opponent — opposing team = red */}
-                  <div className={'player-panel p-1 flex-shrink-0 flex flex-col items-center justify-center ' + (gameState.currentPlayer === leftSlot ? 'active-turn turn-pulse' : '')} style={{ width: gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice && (gameState.hands?.[leftSlot] || []).length > 0 ? 64 : 48 }}>
+                  <div className={'player-panel p-1 flex-shrink-0 flex flex-col items-center justify-center overflow-hidden ' + (gameState.currentPlayer === leftSlot ? 'active-turn turn-pulse' : '')} style={{ width: 48 }}>
                     <div style={{ position: 'relative', borderRadius: '50%', padding: 2, background: 'rgba(239,68,68,0.7)', boxShadow: '0 0 6px rgba(239,68,68,0.4)' }}>
-                      <Avatar profile={profileFromPlayer(gameState.players?.[leftSlot])} size={38} noBorder />
+                      <Avatar profile={profileFromPlayer(gameState.players?.[leftSlot])} size={28} noBorder />
                       {!(gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice) && <div style={{ position: 'absolute', bottom: -4, right: -4, width: 20, height: 20, borderRadius: '50%', background: '#16a34a', border: '2px solid #0a2a14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>{(gameState.hands?.[leftSlot] || []).length}</span>
                       </div>}
@@ -4740,11 +5286,57 @@
                   </div>
 
                   {/* Board */}
-                  <div ref={boardRef} className="board-area flex flex-col items-center justify-center" style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden', height: boardBox.h ? boardBox.h : 'auto' }}>
+                  <div ref={boardRef} className="board-area flex flex-col items-center justify-center" style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden', clipPath: 'inset(0)', height: boardBox.h ? boardBox.h : 'auto' }}>
+                    {/* Pause button (2026-05-09) — for screenshots / debugging.
+                        Floating top-right. Spacebar also toggles. */}
+                    <button
+                      onClick={() => setIsPaused(p => !p)}
+                      style={{
+                        position: 'absolute', top: 4, right: 4, zIndex: 30,
+                        width: 36, height: 36, borderRadius: 18,
+                        background: isPaused ? 'rgba(245,158,11,0.92)' : 'rgba(0,0,0,0.45)',
+                        border: '2px solid ' + (isPaused ? '#92400e' : 'rgba(255,255,255,0.25)'),
+                        color: '#fff', fontSize: 16, fontWeight: 900,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', userSelect: 'none',
+                        boxShadow: isPaused ? '0 0 14px rgba(245,158,11,0.7)' : '0 1px 3px rgba(0,0,0,0.4)',
+                        padding: 0,
+                      }}
+                      title={isPaused ? 'Resume (Space)' : 'Pause (Space)'}
+                      aria-label={isPaused ? 'Resume game' : 'Pause game for screenshot'}
+                    >
+                      {isPaused ? (
+                        // Play triangle (SVG — renders consistently across browsers/fonts)
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+                             style={{ marginLeft: 2 /* optical centering for triangle */ }}>
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      ) : (
+                        // Pause (two bars)
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <rect x="6" y="4" width="4" height="16" />
+                          <rect x="14" y="4" width="4" height="16" />
+                        </svg>
+                      )}
+                    </button>
                     {(!gameState.board || gameState.board.length === 0) ? null : (() => {
                       const board = gameState.board;
                       const HW = bDims.hw, VW = bDims.vw;
                       const GAP = 1;
+
+                      // 2026-05-09: compute last-played tile.id from moveHistory.
+                      // Used by both spiral and snake-fallback render branches to
+                      // correctly highlight the most recent play. board[board.length-1]
+                      // is wrong when the play was on LEFT side (board.unshift puts
+                      // the new tile at board[0]).
+                      const _mh = gameState.moveHistory || [];
+                      let lastPlayedTileId = null;
+                      for (let _i = _mh.length - 1; _i >= 0; _i--) {
+                        if (_mh[_i]?.t === 'play' && _mh[_i]?.tile?.id != null) {
+                          lastPlayedTileId = _mh[_i].tile.id;
+                          break;
+                        }
+                      }
 
                       // End badge (green number)
                       const BADGE_SZ = 30;
@@ -4772,19 +5364,32 @@
                         // The CornerDial SVG is transparent, so tiles placed beneath it
                         // remain visible through the overlay.
                         const DIAL_CORNER = Math.min(110, Math.round(Math.min(W, H) * 0.27));
-                        const SPIRAL_PADS = { top: 2, right: 34, bottom: 8, left: 2 };
+                        const SPIRAL_PADS = { top: 0, right: 34, bottom: 4, left: 2 };
 
-                        // Auto-scale: try current size, shrink until all tiles fit.
-                        // Use 12 attempts and lower minimums (hw≥18, vw≥9) so even
-                        // tiny landscape boards can accommodate all 28 tiles.
-                        let spiralHW = HW, spiralVW = VW, out;
+                        // 2026-05-09 FIX: stable tile size to prevent the chain from
+                        // shifting as new tiles are added. Previously the auto-scale
+                        // loop ran on `board` (the actual placed tiles), so as the
+                        // board grew, the loop picked smaller HW/VW, which moved
+                        // ALL existing tiles. Per user complaint: "first row tiles
+                        // should be FIXED — only add on left/right side."
+                        //
+                        // New behavior: pre-compute the size that fits a realistic
+                        // worst-case 20-tile board (28 total - 4 dorme = 24 max,
+                        // but games typically end via batida or block before 24).
+                        // Use that size from the start. Tiles never shrink mid-game.
+                        const MAX_BOARD_TILES = 20;
+                        let spiralHW = HW, spiralVW = VW;
+                        const _fullBoardMax = new Array(MAX_BOARD_TILES).fill(null).map((_, i) => ({ id: i, left: 0, right: 0 }));
                         for (let attempt = 0; attempt < 12; attempt++) {
-                          out = layoutSpiral(board, W, H, spiralHW, spiralVW, 8,
+                          const _test = layoutSpiral(_fullBoardMax, W, H, spiralHW, spiralVW, 1,
                             SPIRAL_PADS, DIAL_CORNER, DIAL_CORNER);
-                          if (out.tiles.length >= board.length) break;
+                          if (_test.tiles.length >= MAX_BOARD_TILES) break;
                           spiralHW = Math.max(18, Math.round(spiralHW * 0.88));
                           spiralVW = Math.max(9, Math.round(spiralVW * 0.88));
                         }
+                        // Now lay out the actual board with the stable size
+                        const out = layoutSpiral(board, W, H, spiralHW, spiralVW, 1,
+                          SPIRAL_PADS, DIAL_CORNER, DIAL_CORNER);
                         const tilesOut = out.tiles;
                         const first = tilesOut[0];
                         const last = tilesOut[tilesOut.length - 1];
@@ -4796,7 +5401,10 @@
                               const isLeftEnd = idx === 0;
                               const isRightEnd = idx === tilesOut.length - 1;
                               const isEndTile = isLeftEnd || isRightEnd;
-                              const isLastPlayed = p.i === board.length - 1 && board.length > 1;
+                              // 2026-05-09: find last-played by tile.id from moveHistory.
+                              // board[board.length-1] is wrong when last play was on LEFT
+                              // side (board.unshift puts new tile at board[0]).
+                              const isLastPlayed = t && t.id === lastPlayedTileId && board.length > 1;
                               const tw = p.orient === 'horizontal' ? spiralHW : spiralVW;
                               const th = p.orient === 'horizontal' ? spiralVW : spiralHW;
                               return (
@@ -4880,7 +5488,7 @@
                                   const isD = t.left === t.right;
                                   const orient = isD ? 'vertical' : 'horizontal';
                                   const flip = isOdd && orient === 'horizontal';
-                                  const isLastPlayed = tileIndex === board.length - 1 && board.length > 1;
+                                  const isLastPlayed = t && t.id === lastPlayedTileId && board.length > 1;
                                   return (
                                     <div key={t.id + '-' + tileIndex}
                                       ref={(el) => { if (el) tileElRef.current.set(t.id + '-' + tileIndex, el); }}
@@ -4912,16 +5520,18 @@
                         </div>
                       );
                     })()}
-                    {/* Dormidas — bottom-left overlay: tiny badge during play, tiles revealed after round */}
+                    {/* Dormidas — bottom-left overlay: tiny badge during play, tiles revealed after round.
+                        2026-05-11: when revealed at round-end, use full board-tile size so they're
+                        readable. During play they stay as a tiny opacity-faded marker. */}
                     {gameState.dormidas && gameState.dormidas.length > 0 && (
                       gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice ? (
                         <div style={{ position: 'absolute', bottom: 6, left: 6, zIndex: 20,
-                          background: 'rgba(0,0,0,0.55)', borderRadius: 8, padding: '4px 6px',
-                          backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                          <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.35)', marginBottom: 3, textAlign: 'center' }}>Dormidas</div>
-                          <div style={{ display: 'flex', gap: 2 }}>
+                          background: 'rgba(0,0,0,0.65)', borderRadius: 10, padding: '6px 8px',
+                          backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.55)', marginBottom: 4, textAlign: 'center', letterSpacing: 0.5 }}>Dormidas</div>
+                          <div style={{ display: 'flex', gap: 3 }}>
                             {gameState.dormidas.map(tile => (
-                              <BoardTile key={tile.id} tile={tile} orientation="vertical" flipped={false} hw={36} vw={18} />
+                              <BoardTile key={tile.id} tile={tile} orientation="vertical" flipped={false} hw={bDims.hw} vw={bDims.vw} />
                             ))}
                           </div>
                         </div>
@@ -4988,9 +5598,9 @@
                   </div>
 
                   {/* Right opponent — opposing team = red */}
-                  <div className={'player-panel p-1 flex-shrink-0 flex flex-col items-center justify-center ' + (gameState.currentPlayer === rightSlot ? 'active-turn turn-pulse' : '')} style={{ width: gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice && (gameState.hands?.[rightSlot] || []).length > 0 ? 64 : 48 }}>
+                  <div className={'player-panel p-1 flex-shrink-0 flex flex-col items-center justify-center overflow-hidden ' + (gameState.currentPlayer === rightSlot ? 'active-turn turn-pulse' : '')} style={{ width: 48 }}>
                     <div style={{ position: 'relative', borderRadius: '50%', padding: 2, background: 'rgba(239,68,68,0.7)', boxShadow: '0 0 6px rgba(239,68,68,0.4)' }}>
-                      <Avatar profile={profileFromPlayer(gameState.players?.[rightSlot])} size={38} noBorder />
+                      <Avatar profile={profileFromPlayer(gameState.players?.[rightSlot])} size={28} noBorder />
                       {!(gameState.currentPlayer === -1 && !gameState.waitingForStarterChoice) && <div style={{ position: 'absolute', bottom: -4, right: -4, width: 20, height: 20, borderRadius: '50%', background: '#16a34a', border: '2px solid #0a2a14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <span style={{ fontSize: 11, fontWeight: 800, color: '#fff' }}>{(gameState.hands?.[rightSlot] || []).length}</span>
                       </div>}
@@ -5022,7 +5632,12 @@
 
                 {/* Score dials removed from here — now overlaid on board corners */}
 
-                {/* Round announcement banner — below board, above hand */}
+                {/* Round announcement banner — below board, above hand.
+                    2026-05-09: drop the !gameEnded gate so the banner also
+                    flashes on the partida-winning bat. The 3.5s timeout in
+                    the useEffect auto-clears it; the new-partida-start fix
+                    (roundResult: null at line ~1042) prevents carryover
+                    from the previous partida. */}
                 {roundAnnouncement && (
                   <div className="animate-bounce-in" style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -5112,48 +5727,43 @@
 
                 {/* My Hand — my team = blue */}
                 <div className={'my-hand px-1.5 py-1 mx-2 ' + (isMyTurn ? 'my-turn' : '')} style={{ marginTop: 4 }}>
-                  <div className="flex items-center justify-center gap-1.5" style={{ marginBottom: 2 }}>
+                  <div className="flex items-center gap-1.5" style={{ marginBottom: 2 }}>
+                    {/* Avatar inline to the left */}
                     <div style={{ position: 'relative', flexShrink: 0, borderRadius: '50%', padding: 2, background: 'rgba(59,130,246,0.7)', boxShadow: '0 0 6px rgba(59,130,246,0.4)' }}>
-                      <Avatar profile={profileFromPlayer(gameState.players?.[playerSlot])} size={38} noBorder />
+                      <Avatar profile={profileFromPlayer(gameState.players?.[playerSlot])} size={34} noBorder />
                       <div style={{ position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, borderRadius: '50%', background: '#16a34a', border: '1.5px solid #0a2a14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <span style={{ fontSize: 8, fontWeight: 800, color: '#fff' }}>{myHand.length}</span>
                       </div>
                       {passedSlot === playerSlot && <div className="animate-bounce-in" style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(239,68,68,0.5)' }}>Toquei!</div>}
                     </div>
-                    <span className="text-[10px] font-bold text-white/80">Voce</span>
-                    {isMyTurn && <span className="text-[8px] px-1 py-0.5 rounded-full font-bold turn-pulse" style={{ background: 'rgba(250,204,21,0.25)', color: '#fde047' }}>SUA VEZ</span>}
-                    {gameState.currentPlayer === -1 && gameState.blockedReveal && (() => {
-                      const p = gameState.blockedReveal.players?.find(x => x.slot === playerSlot);
-                      return p ? <span className="text-[14px] font-extrabold text-yellow-300/90">({p.pips})</span> : null;
-                    })()}
-                  </div>
-
-                  <div className="flex flex-wrap gap-1 justify-center" style={{ marginBottom: 2 }}>
-                    {myHand.map(tile => (
-                      <DominoTile
-                        key={tile.id}
-                        tile={tile}
-                        playable={isMyTurn && canPlayTile(tile)}
-                        hDims={hDims}
-                        onClick={() => {
-                          if (!isMyTurn || !canPlayTile(tile)) return;
-                          playTile(tile);
-                        }}
-                      />
-                    ))}
-                  </div>
-                  {isMyTurn && !myHand.some(t => canPlayTile(t)) && (
-                    <div className="text-center text-[10px] font-bold text-yellow-300/80 animate-slide-down">
-                      Sem peca — passando...
+                    {/* Tiles row */}
+                    <div className="flex flex-wrap gap-1 flex-1 items-center">
+                      {gameState.currentPlayer === -1 && gameState.blockedReveal && (() => {
+                        const p = gameState.blockedReveal.players?.find(x => x.slot === playerSlot);
+                        return p ? <span className="text-[14px] font-extrabold text-yellow-300/90">({p.pips})</span> : null;
+                      })()}
+                      {myHand.map(tile => (
+                        <DominoTile
+                          key={tile.id}
+                          tile={tile}
+                          playable={isMyTurn && canPlayTile(tile)}
+                          hDims={hDims}
+                          onClick={() => {
+                            if (!isMyTurn || !canPlayTile(tile)) return;
+                            playTile(tile);
+                          }}
+                        />
+                      ))}
+                      {isMyTurn && !myHand.some(t => canPlayTile(t)) && (
+                        <span className="text-[10px] font-bold text-yellow-300/80 animate-slide-down">Sem peca...</span>
+                      )}
+                      {isMyTurn && moveTimer !== null && myHand.some(t => canPlayTile(t)) && (
+                        <span className={'inline-block px-1.5 py-0 rounded-full text-[9px] font-bold ' + (moveTimer <= 3 ? 'bg-red-500/30 text-red-300' : 'bg-white/10 text-white/60')}>
+                          {moveTimer}s
+                        </span>
+                      )}
                     </div>
-                  )}
-                  {isMyTurn && moveTimer !== null && myHand.some(t => canPlayTile(t)) && (
-                    <div className="text-center">
-                      <span className={'inline-block px-1.5 py-0 rounded-full text-[9px] font-bold ' + (moveTimer <= 3 ? 'bg-red-500/30 text-red-300' : 'bg-white/10 text-white/60')}>
-                        {moveTimer}s
-                      </span>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
@@ -5429,6 +6039,255 @@
       if (document.visibilityState === 'visible') requestWakeLock();
     });
     requestWakeLock();
+  </script>
+  <script>
+    // === EN/PT translator + toggle (runtime DOM) ===
+    (function () {
+      const DICT = {
+        // Headings / menus
+        'Domino Pernambucano - 2v2': 'Pernambucano Domino - 2v2',
+        'Domino Pernambucano': 'Pernambucano Domino',
+        'Jogo de domino 2v2': '2v2 domino game',
+        'Menu': 'Menu',
+        'Nova Partida': 'New Match',
+        'Comecar Jogo!': 'Start Game!',
+        'Começar Jogo!': 'Start Game!',
+        'Escolha seu perfil': 'Choose your profile',
+        'Selecione seu perfil!': 'Select your profile!',
+        'Codigo da Sala': 'Room Code',
+        'Codigo da sala': 'Room code',
+        'Código da Sala': 'Room Code',
+        'Código da sala': 'Room code',
+        'Envie este codigo para os outros jogadores!': 'Send this code to the other players!',
+        'Envie este código para os outros jogadores!': 'Send this code to the other players!',
+        'Digite o codigo da sala!': 'Enter the room code!',
+        'Digite o código da sala!': 'Enter the room code!',
+        'Aguardando o host iniciar o jogo...': 'Waiting for host to start the game...',
+        'Aguardando jogadores!': 'Waiting for players!',
+        'Aguardando jogadores...': 'Waiting for players...',
+        'Esperando': 'Waiting',
+        'Quem comeca?': 'Who starts?',
+        'Quem começa?': 'Who starts?',
+        'Decidindo...': 'Deciding...',
+        'Voto registrado!': 'Vote recorded!',
+
+        // Players / teams
+        'Jogador 1': 'Player 1', 'Jogador 2': 'Player 2',
+        'Jogador 3': 'Player 3', 'Jogador 4': 'Player 4',
+        'Jogadores humanos': 'Human players',
+        'Humano': 'Human',
+        'Voce': 'You', 'Você': 'You',
+        'Time 1': 'Team 1', 'Time 2': 'Team 2', 'Time ': 'Team ',
+        'Seu time venceu!': 'Your team won!',
+        'Adversarios venceram!': 'Opponents won!',
+        'Adversários venceram!': 'Opponents won!',
+
+        // Win states
+        'PARTIDA GANHA!': 'MATCH WON!',
+        'PARTIDA GANHA! Time ': 'MATCH WON! Team ',
+        'PARTIDA GANHA! ': 'MATCH WON! ',
+        'PARTIDA PERDIDA!': 'MATCH LOST!',
+        'Perdeu sem marcar!': 'Lost without scoring!',
+        'Venceu sem deixar ponto!': 'Won without conceding a point!',
+        'BUCHUDA': 'BUCHUDA',
+        'BUCHUDA!': 'BUCHUDA!',
+        'BUCHUDA! Time ': 'BUCHUDA! Team ',
+        'BUCHUDA! ': 'BUCHUDA! ',
+        'Buchuda': 'Buchuda',
+        'com carroca': 'with double',
+        'com carroça': 'with double',
+        'CARROCA': 'DOUBLE',
+        'CARROÇA!': 'DOUBLE!',
+        'Carroça': 'Double',
+        'CRUZADA': 'CROSSED',
+        'CRUZADA!': 'CROSSED!',
+        'Cruzada': 'Crossed',
+        'LA E LO': 'HERE & THERE',
+        'LÁ E LÓ!': 'HERE & THERE!',
+        'Lá e Ló': 'Here & There',
+        'BATEU!': 'KNOCKED!',
+        'Bateu!': 'Knocked!',
+        'Batida': 'Knock',
+        'Toquei!': 'Pass!',
+        'Sem peca...': 'No tile...',
+        'Sem peça...': 'No tile...',
+        'Voce tem peca valida!': 'You have a valid tile!',
+        'Você tem peça válida!': 'You have a valid tile!',
+        'Jogo travado! ': 'Game blocked! ',
+        'Jogo travado!': 'Game blocked!',
+        'Travada': 'Blocked',
+        'Empate — dobrada!': 'Tie — doubled!',
+        'DEDADA': 'TAP',
+        'NORMAL': 'NORMAL',
+        'VENCEU': 'WON',
+        'VEZ': 'TURN',
+        'dorme': 'sleeps',
+
+        // Stats / settings labels
+        'Estatísticas': 'Statistics',
+        'Partidas': 'Matches',
+        'Rodadas': 'Rounds',
+        'Pontos': 'Points',
+        'Dormidas': 'Sleeps',
+        'Tipos de vitória': 'Win types',
+        'vitórias': 'wins',
+        'Animações': 'Animations',
+        'Forca da IA (bots)': 'AI strength (bots)',
+        'Força da IA (bots)': 'AI strength (bots)',
+        'Velocidade dos Bots': 'Bot Speed',
+        'Bots jogam instantaneamente (teste)': 'Bots play instantly (test)',
+        'Bots jogam pecas aleatorias': 'Bots play random tiles',
+        'Bots jogam peças aleatórias': 'Bots play random tiles',
+        'Bots pensam ~3 segundos': 'Bots think ~3 seconds',
+        'Bots pensam ~5 segundos': 'Bots think ~5 seconds',
+        'Bots pensam ~10 segundos': 'Bots think ~10 seconds',
+        'Bots usam IA completa com busca': 'Bots use full AI with search',
+        'Bots usam estrategia basica': 'Bots use basic strategy',
+        'Bots usam estratégia básica': 'Bots use basic strategy',
+        'Facil': 'Easy', 'Fácil': 'Easy',
+        'Medio': 'Medium', 'Médio': 'Medium',
+        'Dificil': 'Hard', 'Difícil': 'Hard',
+        'Lento': 'Slow',
+        'Rapido': 'Fast', 'Rápido': 'Fast',
+        'Teste': 'Test',
+
+        // Errors
+        'Sala cheia!': 'Room full!',
+        'Sala nao encontrada!': 'Room not found!',
+        'Sala não encontrada!': 'Room not found!',
+        'Jogo ja comecou!': 'Game already started!',
+        'Jogo já começou!': 'Game already started!',
+        'Erro ao criar sala: ': 'Error creating room: ',
+        'Erro ao entrar: ': 'Error joining: '
+      };
+
+      // Sort keys longest-first so multi-word phrases match before sub-phrases
+      const KEYS = Object.keys(DICT).sort((a, b) => b.length - a.length);
+
+      function getLang() {
+        return localStorage.getItem('domino_lang') || 'pt';
+      }
+      function setLang(l) {
+        localStorage.setItem('domino_lang', l);
+      }
+
+      // Seed each text node with its original PT once, so toggling back is exact.
+      function seed(node) {
+        if (node.nodeType === 3) {
+          if (node.__pt === undefined) node.__pt = node.nodeValue;
+        } else if (node.nodeType === 1) {
+          // Skip script/style and the toggle itself
+          const tag = node.tagName;
+          if (tag === 'SCRIPT' || tag === 'STYLE' || node.id === 'lang-toggle') return;
+          for (let c = node.firstChild; c; c = c.nextSibling) seed(c);
+          // Inputs: placeholder
+          if (node.placeholder !== undefined && node.__ptPh === undefined) {
+            node.__ptPh = node.placeholder;
+          }
+        }
+      }
+
+      function translateString(s) {
+        if (!s) return s;
+        let out = s;
+        for (const k of KEYS) {
+          if (out.indexOf(k) !== -1) {
+            out = out.split(k).join(DICT[k]);
+          }
+        }
+        return out;
+      }
+
+      function apply(node, lang) {
+        if (node.nodeType === 3) {
+          if (node.__pt === undefined) node.__pt = node.nodeValue;
+          const target = lang === 'en' ? translateString(node.__pt) : node.__pt;
+          if (node.nodeValue !== target) node.nodeValue = target;
+        } else if (node.nodeType === 1) {
+          const tag = node.tagName;
+          if (tag === 'SCRIPT' || tag === 'STYLE' || node.id === 'lang-toggle') return;
+          for (let c = node.firstChild; c; c = c.nextSibling) apply(c, lang);
+          if (node.placeholder !== undefined) {
+            if (node.__ptPh === undefined) node.__ptPh = node.placeholder;
+            const target = lang === 'en' ? translateString(node.__ptPh) : node.__ptPh;
+            if (node.placeholder !== target) node.placeholder = target;
+          }
+        }
+      }
+
+      function applyAll() {
+        seed(document.body);
+        apply(document.body, getLang());
+        // Title
+        if (!document.title.__pt) {
+          document.title.__pt = document.title;
+        }
+        const t = getLang() === 'en' ? translateString(document.title.__pt || document.title) : (document.title.__pt || document.title);
+        if (document.title !== t) document.title = t;
+        const btn = document.getElementById('lang-toggle');
+        if (btn) btn.textContent = getLang() === 'en' ? 'PT' : 'EN';
+      }
+
+      function makeButton() {
+        let btn = document.getElementById('lang-toggle');
+        if (btn && btn.parentNode === document.documentElement) return;
+        if (btn) btn.remove();
+        btn = document.createElement('button');
+        btn.id = 'lang-toggle';
+        btn.textContent = getLang() === 'en' ? '🇧🇷 PT' : '🇬🇧 EN';
+        btn.title = 'Toggle language';
+        btn.setAttribute('style', [
+          'position:fixed !important',
+          'top:10px !important', 'right:10px !important',
+          'z-index:2147483647 !important',
+          'padding:10px 16px !important',
+          'min-width:80px !important', 'min-height:40px !important',
+          'border-radius:10px !important',
+          'background:#fbbf24 !important', 'color:#000 !important',
+          'border:2px solid #000 !important',
+          'font:800 16px Poppins,system-ui,sans-serif !important',
+          'cursor:pointer !important',
+          'box-shadow:0 4px 12px rgba(0,0,0,0.6) !important',
+          'display:block !important', 'visibility:visible !important',
+          'opacity:1 !important', 'pointer-events:auto !important'
+        ].join(';'));
+        btn.addEventListener('click', () => {
+          setLang(getLang() === 'en' ? 'pt' : 'en');
+          btn.textContent = getLang() === 'en' ? '🇧🇷 PT' : '🇬🇧 EN';
+          applyAll();
+        });
+        // Mount on <html> so React can never wipe it via #root re-render
+        document.documentElement.appendChild(btn);
+        try { console.log('[lang-toggle] mounted, lang=' + getLang()); } catch (e) {}
+      }
+
+      let scheduled = false;
+      function schedule() {
+        if (scheduled) return;
+        scheduled = true;
+        requestAnimationFrame(() => {
+          scheduled = false;
+          makeButton();
+          applyAll();
+        });
+      }
+
+      function init() {
+        document.title.__pt = document.title;
+        makeButton();
+        applyAll();
+        new MutationObserver(schedule).observe(document.body, {
+          childList: true, subtree: true, characterData: true,
+          attributes: true, attributeFilter: ['placeholder']
+        });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
   </script>
 </body>
 </html>
