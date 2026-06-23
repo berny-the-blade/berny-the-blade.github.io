@@ -1042,6 +1042,7 @@
         { key: 'carlinhos', name: 'Carlinhos', avatarType: 'image', avatarSrc: 'avatars/carlinhos.png', color: '#22c55e' },
         { key: 'bernd', name: 'Bernd', avatarType: 'image', avatarSrc: 'avatars/bernd.png', color: '#a855f7' },
         { key: 'junior', name: 'Junior', avatarType: 'image', avatarSrc: 'avatars/junior.png', color: '#10b981' },
+        { key: 'visitante', name: 'Visitante', avatarType: 'initials', initials: 'V', color: '#64748b', bgGradient: 'linear-gradient(135deg, #94a3b8, #475569)' },
       ];
       const BOT_PROFILES = [
         { key: 'dona-maria', name: 'Dona Maria', avatarType: 'initials', initials: 'DM', color: '#ef4444', bgGradient: 'linear-gradient(135deg, #ef4444, #b91c1c)' },
@@ -5577,6 +5578,31 @@
               <h1 className="ds-title" style={{ fontSize: 64, marginBottom: 4, lineHeight: 1 }}>Dominó</h1>
               <div className="ds-divider-brass" style={{ width: 200, marginTop: 12, marginBottom: 14 }} />
               <p className="ds-subtitle">Pernambuco · Dupla</p>
+              {/* 2026-06: restored profile picker on landing (play-v2 parity) */}
+              <div style={{ width: '100%', maxWidth: 380, marginTop: 26, position: 'relative', zIndex: 1 }}>
+                <p style={{ color: 'var(--ds-cream)', fontSize: 13, fontWeight: 700, textAlign: 'center', marginBottom: 10, fontFamily: 'Inter, sans-serif', opacity: 0.85, letterSpacing: 0.5 }}>Escolha seu perfil</p>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  {HUMAN_PROFILES.map(profile => (
+                    <button
+                      key={profile.key}
+                      onClick={() => { setSelectedProfile(profile); setPlayerName(profile.name); }}
+                      style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, padding: 8, borderRadius: 14,
+                        transition: 'all 0.2s',
+                        background: selectedProfile?.key === profile.key ? 'rgba(212,175,55,0.22)' : 'rgba(255,255,255,0.06)',
+                        border: selectedProfile?.key === profile.key ? '2px solid var(--ds-brass)' : '2px solid rgba(255,255,255,0.12)',
+                        transform: selectedProfile?.key === profile.key ? 'scale(1.06)' : 'scale(1)',
+                        cursor: 'pointer', minWidth: 62,
+                      }}
+                    >
+                      <Avatar profile={profile} size={46} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: selectedProfile?.key === profile.key ? 'var(--ds-brass)' : 'var(--ds-cream)' }}>
+                        {profile.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Main CTA */}
@@ -5621,7 +5647,8 @@
             </div>
 
             <p style={{ color: 'var(--ds-text-muted)', fontSize: 11, opacity: 0.55, marginTop: 8, position: 'relative', zIndex: 1, fontFamily: 'Inter, sans-serif', letterSpacing: 1 }}>
-              v1.0</p>
+              v1.0
+            </p>
             <p style={{ color: 'var(--ds-text-muted)', fontSize: 10, opacity: 0.45, marginTop: 6, position: 'relative', zIndex: 1, fontFamily: 'Inter, sans-serif' }}>
               <a href="https://berny-the-blade.github.io/legal/privacy-pt-BR.html" target="_blank" rel="noopener" style={{ color: 'inherit', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,0.3)' }}>Privacidade</a>
               {' · '}
