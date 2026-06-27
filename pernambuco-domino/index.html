@@ -964,7 +964,7 @@
       // 2026-05-21: Flip to true in v1.1 to enable multiplayer.
       // All multiplayer UI + room helpers are gated behind this flag so the
       // v1.0 single-player flow (JOGAR) is unaffected.
-      const MULTIPLAYER_ENABLED = false;
+      const MULTIPLAYER_ENABLED = true;
       const [screen, setScreen] = useState('menu');
       const [roomCode, setRoomCode] = useState('');
       const [playerName, setPlayerName] = useState('');
@@ -1219,7 +1219,7 @@
       // pre-filled WhatsApp message containing the invite URL with the room
       // code as a query param. Used only when MULTIPLAYER_ENABLED.
       const buildWhatsAppInviteUrl = (roomCode) => {
-        const deepLink = `https://berny-the-blade.github.io/play-v2/?room=${roomCode}`;
+        const deepLink = `https://berny-the-blade.github.io/pernambuco-domino/?room=${roomCode}`;
         const message = `Bora jogar dominó? Entra na minha sala: ${deepLink}`;
         return `https://wa.me/?text=${encodeURIComponent(message)}`;
       };
@@ -1228,7 +1228,7 @@
       // Brazilian users coordinate via WhatsApp; share with pre-filled message
       // drives organic installs to the play-v2 URL.
       const buildShareWinUrl = (scoreName, points, isMatchWin) => {
-        const url = 'https://berny-the-blade.github.io/play-v2/';
+        const url = 'https://berny-the-blade.github.io/pernambuco-domino/';
         let msg;
         if (isMatchWin) {
           msg = `Acabei de vencer a partida no Dominó Pernambucano! 🏆\nJoga você também: ${url}`;
@@ -1246,7 +1246,7 @@
 
       // 2026-05-21: v1.0 viral hook — generic menu-screen share for "invite a friend".
       const buildShareMenuUrl = () => {
-        const url = 'https://berny-the-blade.github.io/play-v2/';
+        const url = 'https://berny-the-blade.github.io/pernambuco-domino/';
         const msg = `Bora jogar dominó pernambucano? Sem cadastro, sem propaganda:\n${url}`;
         return 'https://wa.me/?text=' + encodeURIComponent(msg);
       };
