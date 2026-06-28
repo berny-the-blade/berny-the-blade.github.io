@@ -4742,6 +4742,7 @@
           gameEnded: newScores[winningTeam] >= gameState.matchTarget,
           lastWinningTeam: winningTeam,
           blockedReveal: null,
+          lastPass: null,
           roundResult: { scoreName, points, winner, winningTeam, playerName: gameState.players[winner].name },
           message: gameState.players[winner].name + ' bateu ' + scoreName + '! Time ' + (winningTeam + 1) + ' marcou ' + points + ' ponto(s)' + extraMsg + '!',
           currentPlayer: -1,
