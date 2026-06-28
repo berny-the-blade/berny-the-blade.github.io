@@ -4962,13 +4962,18 @@
         }
       };
 
-      // Pass badge on avatar
+      // Pass badge on avatar. 2026-06-28: trigger on lastPass ONLY. Including
+      // currentPlayer re-fired this on every turn change while lastPass was
+      // unchanged (it stays set until someone plays), re-showing "Toquei!" and
+      // resetting the 2.5s timer each turn — the badge kept reappearing for the
+      // passer (human and bots). lastPass changes on every distinct pass and is
+      // cleared to null the instant anyone plays, so it alone is the right trigger.
       useEffect(() => {
         if (gameState?.lastPass == null) { setPassedSlot(null); return; }
         setPassedSlot(gameState.lastPass);
         const t = setTimeout(() => setPassedSlot(null), 2500);
         return () => clearTimeout(t);
-      }, [gameState?.lastPass, gameState?.currentPlayer]);
+      }, [gameState?.lastPass]);
 
       // Round result announcement overlay
       useEffect(() => {
