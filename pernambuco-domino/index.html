@@ -5241,7 +5241,12 @@
         // current human player has been silent >60s, host (slot 0) plays one
         // move via botAI on their behalf. The lastSeen heartbeat (10s interval)
         // tracks liveness; player retains isHuman, so they resume on return.
+        // 2026-06-28: NEVER take over the LOCAL seat. This client's own player is
+        // present by definition; without this guard, a stale lastSeen at game
+        // start (e.g. after a long lobby wait, before the first heartbeat tick)
+        // made the host auto-play its OWN opening/first tile.
         const stale = MULTIPLAYER_ENABLED && cur && cur.isHuman && cur.lastSeen
+          && currentSlot !== playerSlot
           && (Date.now() - cur.lastSeen) > 60000;
 
         if (!isBot && !stale) return;
