@@ -1224,6 +1224,27 @@
         return `https://wa.me/?text=${encodeURIComponent(message)}`;
       };
 
+      // 2026-06-27: host stays in the room while inviting. In an installed PWA /
+      // mobile tab, window.open(wa.me, '_blank') NAVIGATES the same window to
+      // WhatsApp and unloads the game — the host drops out of their own room.
+      // Prefer the Web Share API (overlay sheet, page stays alive); fall back to
+      // clipboard copy. Never navigate away from an active lobby.
+      const shareRoomInvite = (roomCode) => {
+        const deepLink = `https://berny-the-blade.github.io/pernambuco-domino/?room=${roomCode}`;
+        const message = `Bora jogar dominó? Entra na minha sala: ${deepLink}`;
+        if (navigator.share) {
+          navigator.share({ text: message, url: deepLink }).catch(() => {});
+          return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(message)
+            .then(() => alert('Link copiado! Cole no WhatsApp do grupo.'))
+            .catch(() => alert('Copie o link da sala: ' + deepLink));
+          return;
+        }
+        alert('Copie o link da sala: ' + deepLink);
+      };
+
       // 2026-05-21: v1.0 viral hook — WhatsApp share after a win.
       // Brazilian users coordinate via WhatsApp; share with pre-filled message
       // drives organic installs to the play-v2 URL.
@@ -6063,7 +6084,7 @@
                 <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '0.3em', color: 'var(--ds-wood-mid)', marginBottom: 12 }}>{roomCode}</div>
                 {playerSlot === 0 && (
                   <button
-                    onClick={() => window.open(buildWhatsAppInviteUrl(roomCode), '_blank')}
+                    onClick={() => shareRoomInvite(roomCode)}
                     style={{ width: '100%', padding: '14px', borderRadius: 10, background: '#25D366', color: 'white', fontWeight: 700, fontSize: 15, border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,211,102,0.35)' }}
                   >Convidar pelo WhatsApp ↗</button>
                 )}
@@ -6120,7 +6141,7 @@
                 </div>
                 {playerSlot === 0 && cfg.humanCount > 1 && (
                   <button
-                    onClick={() => window.open(buildWhatsAppInviteUrl(roomCode), '_blank')}
+                    onClick={() => shareRoomInvite(roomCode)}
                     style={{ width: '100%', marginTop: 12, padding: '12px', borderRadius: 10, background: '#25D366', color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}
                   >Convidar pelo WhatsApp ↗</button>
                 )}
