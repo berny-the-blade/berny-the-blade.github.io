@@ -1166,7 +1166,10 @@
       // 2026-05-13: FORCE 'snakev2' on next load to escape stuck localStorage from
       // earlier iterations. Users who manually pick spiral/snake later get respected,
       // but 'snake' (old buggy fallback) gets upgraded automatically.
-      const _validLayouts = ['spiral', 'snakev2'];
+      // 2026-06-28: 'spiral' ("Em volta") retired — its reconstructed geometry
+      // renders messy. snakev2 ("Em fileiras") is the only supported layout;
+      // any stored 'spiral' migrates to snakev2 so users aren't stuck on it.
+      const _validLayouts = ['snakev2'];
       const _initialLayout = _validLayouts.includes(_storedLayout) ? _storedLayout : 'snakev2';
       if (_storedLayout !== _initialLayout) {
         try { localStorage.setItem('domino_tile_layout', _initialLayout); } catch (e) {}
@@ -6364,14 +6367,6 @@
                       <div style={{ display: 'flex', gap: 6 }}>
                         {[{k:'M',l:'M\u00E9dio'},{k:'L',l:'Grande'},{k:'XL',l:'Extra'}].map(sz => (
                           <button key={sz.k} onClick={() => setBoardSize(sz.k)} style={{ flex: 1, padding: '8px 0', borderRadius: 8, fontWeight: 700, fontSize: 13, border: boardSize === sz.k ? '2px solid var(--ds-brass-dark)' : '1px solid #d4cfb6', background: boardSize === sz.k ? 'var(--ds-brass-light)' : '#fcfbf7', color: 'var(--ds-text-on-cream)', cursor: 'pointer' }}>{sz.l}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{'Disposi\u00E7\u00E3o'}</div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {[{k:'snakev2',l:'Em fileiras'},{k:'spiral',l:'Em volta'}].map(ly => (
-                          <button key={ly.k} onClick={() => setTileLayout(ly.k)} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontWeight: 700, fontSize: 12, border: tileLayout === ly.k ? '2px solid var(--ds-brass-dark)' : '1px solid #d4cfb6', background: tileLayout === ly.k ? 'var(--ds-brass-light)' : '#fcfbf7', color: 'var(--ds-text-on-cream)', cursor: 'pointer' }}>{ly.l}</button>
                         ))}
                       </div>
                     </div>
