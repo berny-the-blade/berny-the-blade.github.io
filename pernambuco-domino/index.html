@@ -1300,7 +1300,7 @@
 
         const initialState = {
           roomCode: code,
-          config: { humanCount: humanCount, humanSlots: humanSlots, aiDifficulty: aiDifficulty, botSpeed: botSpeed },
+          config: { humanCount: humanCount, humanSlots: humanSlots, aiDifficulty: aiDifficulty, botSpeed: botSpeed, multiplayer: humanCount > 1 },
           players: players,
           gameStarted: false,
           gameEnded: false,
@@ -6051,7 +6051,7 @@
 
         // 2026-05-21: v1.1 multiplayer lobby — invite-driven, with WhatsApp share
         // CTA + live-joined avatars + countdown to bot-fill at 30s.
-        if (MULTIPLAYER_ENABLED && gameState?.config?.multiplayer) {
+        if (MULTIPLAYER_ENABLED && gameState?.config?.multiplayer && gameState?.config?.fillDeadline) {
           const humansJoined = Object.values(players).filter(p => p && p.isHuman).length;
           const fillSecs = Math.max(0, Math.ceil(((gameState.config.fillDeadline || 0) - Date.now()) / 1000));
           return (
@@ -6118,6 +6118,12 @@
                 <div className="mt-2 inline-block px-3 py-1 rounded-full text-xs font-bold" style={{ background: '#f0fdf4', color: '#166534' }}>
                   {cfg.humanCount} humano(s) + {4 - cfg.humanCount} bot(s)
                 </div>
+                {playerSlot === 0 && cfg.humanCount > 1 && (
+                  <button
+                    onClick={() => window.open(buildWhatsAppInviteUrl(roomCode), '_blank')}
+                    style={{ width: '100%', marginTop: 12, padding: '12px', borderRadius: 10, background: '#25D366', color: 'white', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}
+                  >Convidar pelo WhatsApp ↗</button>
+                )}
               </div>
 
               {/* Teams card */}
