@@ -5254,8 +5254,11 @@
           t.left === gameState.leftEnd || t.right === gameState.leftEnd ||
           t.left === gameState.rightEnd || t.right === gameState.rightEnd
         );
+        // Opening move (empty board) is forced/trivial — play it ASAP, no
+        // artificial "thinking" delay regardless of bot speed.
+        const isOpeningMove = !(gameState.board && gameState.board.length);
         // If bot can't play, pass immediately (no artificial delay)
-        const delay = !canPlay ? 300
+        const delay = (!canPlay || isOpeningMove) ? 300
           : (() => { const spd = gameState?.config?.botSpeed || botSpeed; return spd === 'instant' ? 100 : spd === 'slow' ? 9000 + Math.random() * 2000 : spd === 'fast' ? 2000 + Math.random() * 2000 : 4000 + Math.random() * 2000; })();
 
         const timeout = setTimeout(async () => {
