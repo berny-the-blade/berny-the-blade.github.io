@@ -996,6 +996,10 @@
       const [roundAnnouncement, setRoundAnnouncement] = useState(null);
       const [handVisible, setHandVisible] = useState(true);
       const [humanCount, setHumanCount] = useState(1);
+      // 2026-06-28: for a 2-human game, choose whether the two humans are
+      // PARTNERS (same team, slots [0,2]) or ADVERSÁRIOS (opposite teams, each
+      // paired with an AI: slots [0,1] → team0=human+AI, team1=human+AI).
+      const [humanTeamMode, setHumanTeamMode] = useState('partners'); // 'partners' | 'opponents'
       // 2026-05-21: v1.1 multiplayer state (gated by MULTIPLAYER_ENABLED).
       const [showMultiplayerModal, setShowMultiplayerModal] = useState(false);
       const [mpMode, setMpMode] = useState(null); // 'create' | 'join' | null
@@ -1322,7 +1326,11 @@
         const code = generateRoomCode();
         const pid = generatePlayerId();
 
-        const humanSlots = getHumanSlots(humanCount);
+        // 2026-06-28: opponents mode puts the two humans on opposite teams
+        // ([0,1]) so each is partnered with an AI; partners mode keeps [0,2].
+        const humanSlots = (humanCount === 2 && humanTeamMode === 'opponents')
+          ? [0, 1]
+          : getHumanSlots(humanCount);
         const botProfiles = assignBotProfiles(4 - humanCount);
         let botIdx = 0;
         const players = {};
@@ -5664,6 +5672,16 @@
                     <button key={n} onClick={() => setHumanCount(n)} style={{ flex: 1, padding: '8px 0', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', border: humanCount === n ? '2px solid var(--ds-brass)' : '1px solid rgba(255,255,255,0.15)', background: humanCount === n ? 'rgba(212,175,55,0.22)' : 'rgba(255,255,255,0.06)', color: 'var(--ds-cream)' }}>{n}</button>
                   ))}
                 </div>
+                {humanCount === 2 && (
+                  <>
+                    <p style={{ color: 'var(--ds-cream)', fontSize: 12, fontWeight: 700, textAlign: 'center', margin: '0 0 6px', opacity: 0.85 }}>Times</p>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                      {[{ k: 'partners', l: 'Parceiros', s: 'Vocês 2 vs 2 IA' }, { k: 'opponents', l: 'Adversários', s: 'Cada um com 1 IA' }].map(m => (
+                        <button key={m.k} onClick={() => setHumanTeamMode(m.k)} style={{ flex: 1, padding: '8px 4px', borderRadius: 10, fontWeight: 700, fontSize: 12, cursor: 'pointer', lineHeight: 1.3, border: humanTeamMode === m.k ? '2px solid var(--ds-brass)' : '1px solid rgba(255,255,255,0.15)', background: humanTeamMode === m.k ? 'rgba(212,175,55,0.22)' : 'rgba(255,255,255,0.06)', color: 'var(--ds-cream)' }}>{m.l}<br /><span style={{ fontSize: 10, fontWeight: 500, opacity: 0.7 }}>{m.s}</span></button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 {humanCount < 4 && (
                 <>
                   <p style={{ color: 'var(--ds-cream)', fontSize: 12, fontWeight: 700, textAlign: 'center', margin: '0 0 6px', opacity: 0.85 }}>Força da IA</p>
