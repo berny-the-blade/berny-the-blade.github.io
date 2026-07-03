@@ -5983,6 +5983,16 @@
                       ))}
                     </div>
                   </div>
+                  <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>Arrastar para jogar</div>
+                      <div style={{ fontSize: 11, color: '#5c4d3c' }}>{'Arraste a peça para cima em vez de tocar'}</div>
+                    </div>
+                    <button onClick={() => setDragToPlay(!dragToPlay)}
+                      style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: dragToPlay ? '#10b981' : '#d4cfb6', position: 'relative', cursor: 'pointer', transition: 'background 0.15s' }}>
+                      <div style={{ position: 'absolute', top: 2, left: dragToPlay ? 22 : 2, width: 24, height: 24, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left 0.15s' }} />
+                    </button>
+                  </div>
                   <button onClick={() => setShowMenuSettings(false)} style={{ width: '100%', padding: '12px', borderRadius: 8, background: 'var(--ds-wood-mid)', color: 'var(--ds-cream)', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer' }}>Fechar</button>
                 </div>
               </div>
