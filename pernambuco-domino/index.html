@@ -896,10 +896,18 @@
     }
 
     // === Stable component definitions (outside App to prevent remount on every render) ===
-    const DominoDots = ({ value, size = 'normal', dotPxProp, containerPxProp }) => {
+    const DominoDots = ({ value, size = 'normal', dotPxProp, containerPxProp, isHoriz }) => {
       const dotPx = dotPxProp || (size === 'small' ? 4 : size === 'board' ? 5 : 7);
       const containerPx = containerPxProp || (size === 'small' ? 18 : size === 'board' ? 22 : 32);
-      const patterns = {
+      const patterns = isHoriz ? {
+        0: [],
+        1: [[1,1]],
+        2: [[0,0],[2,2]],
+        3: [[0,0],[1,1],[2,2]],
+        4: [[0,0],[0,2],[2,0],[2,2]],
+        5: [[0,0],[0,2],[1,1],[2,0],[2,2]],
+        6: [[0,0],[0,1],[0,2],[2,0],[2,1],[2,2]]
+      } : {
         0: [],
         1: [[1,1]],
         2: [[0,2],[2,0]],
@@ -5604,11 +5612,11 @@
               : { width: hw, height: vw, flexDirection: 'row' }, extraStyle || {})}
           >
             <div className="flex-1 flex items-center justify-center">
-              <DominoDots value={val1} dotPxProp={bDotPx} containerPxProp={bContPx} />
+              <DominoDots value={val1} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
             </div>
             <div style={dividerStyle}></div>
             <div className="flex-1 flex items-center justify-center">
-              <DominoDots value={val2} dotPxProp={bDotPx} containerPxProp={bContPx} />
+              <DominoDots value={val2} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
             </div>
           </div>
         );
