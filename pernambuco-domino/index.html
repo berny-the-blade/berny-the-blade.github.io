@@ -4859,7 +4859,7 @@
         const newPassCount = (gameState.passCount || 0) + 1;
 
         if (newPassCount >= 4) {
-          await handleBlocked();
+          await handleBlocked(playerSlot);
           return;
         }
 
@@ -4877,7 +4877,7 @@
         const newPassCount = (gameState.passCount || 0) + 1;
 
         if (newPassCount >= 4) {
-          await handleBlocked();
+          await handleBlocked(botSlot);
           return;
         }
 
@@ -4891,7 +4891,7 @@
         });
       };
 
-      const handleBlocked = async () => {
+      const handleBlocked = async (passerSlot = null) => {
         const handValues = gameState.hands.map((hand, idx) => ({
           player: idx,
           points: hand.reduce((sum, t) => sum + t.left + t.right, 0)
@@ -4921,6 +4921,7 @@
             isDobrada: true,
             currentPlayer: -1,
             blockedReveal: blockedReveal,
+            ...(passerSlot !== null ? { lastPass: passerSlot } : {}),
             message: 'Jogo travado! ' + handSummary + '. Empate! Dobrada! Proximo jogo vale ' + newMultiplier + 'x!'
           });
           return;
@@ -4951,6 +4952,7 @@
           lastWinningTeam: winningTeam,
           gameEnded: newScores[winningTeam] >= gameState.matchTarget,
           blockedReveal: blockedReveal,
+          ...(passerSlot !== null ? { lastPass: passerSlot } : {}),
           message: blockedMsg
         });
       };
@@ -5055,9 +5057,11 @@
       useEffect(() => {
         if (gameState?.lastPass == null) { setPassedSlot(null); return; }
         setPassedSlot(gameState.lastPass);
+        // Keep badge showing during blocked-game reveal (cleared when new round nulls lastPass)
+        if (gameState?.blockedReveal) return;
         const t = setTimeout(() => setPassedSlot(null), 2500);
         return () => clearTimeout(t);
-      }, [gameState?.lastPass]);
+      }, [gameState?.lastPass, gameState?.blockedReveal]);
 
       // Round result announcement overlay
       useEffect(() => {
