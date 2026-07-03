@@ -5605,7 +5605,7 @@
       // Domino dots pattern
       /* Hand tiles same size as board tiles (vertical orientation: vw × hw) */
       const hvw = Math.round(bDims.vw * 1.5), hhw = Math.round(bDims.hw * 1.5);
-      const hDims = { w: hvw, h: hhw, dot: hvw <= 28 ? 4 : hvw <= 34 ? 5 : 6, cont: hvw <= 28 ? 20 : hvw <= 34 ? 24 : 28 };
+      const hDims = { w: hvw, h: hhw, dot: hvw <= 28 ? 6 : hvw <= 34 ? 7 : 9, cont: hvw <= 28 ? 22 : hvw <= 34 ? 26 : 30 };
 
       const BoardTile = ({ tile, orientation, flipped, extraStyle, hw: hwOverride, vw: vwOverride }) => {
         const isVertical = orientation === 'vertical';
