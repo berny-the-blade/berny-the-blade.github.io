@@ -947,7 +947,9 @@
       );
     };
 
-    const DominoTile = ({ tile, playable, onClick, hDims, dotColorScheme }) => {
+    const DRAG_LIFT_THRESHOLD = 40; // px of upward drag required to count as a "play" gesture
+
+    const DominoTile = ({ tile, playable, onClick, hDims, dotColorScheme, dragEnabled, bothEnds, onDragPlay }) => {
       const _dc = (v) => (dotColorScheme === 'colored' && DOT_COLORS[v]) ? DOT_COLORS[v] : null;
       const fired = React.useRef(false);
       const handleTouch = (e) => {
@@ -958,6 +960,77 @@
         onClick();
         setTimeout(() => { fired.current = false; }, 300);
       };
+
+      // --- Drag-to-play (v1.1, opt-in via Settings) ---
+      const dragRef = React.useRef(null); // {startX, startY, active}
+      const [drag, setDrag] = React.useState(null); // {dx, dy, side} while lifted past threshold
+
+      const onPointerDown = (e) => {
+        if (!playable || !dragEnabled) return;
+        dragRef.current = { startX: e.clientX, startY: e.clientY, active: false };
+        try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+      };
+      const onPointerMove = (e) => {
+        if (!dragEnabled || !dragRef.current) return;
+        const dx = e.clientX - dragRef.current.startX;
+        const dy = e.clientY - dragRef.current.startY;
+        if (!dragRef.current.active && Math.hypot(dx, dy) > 10) dragRef.current.active = true;
+        if (dragRef.current.active) {
+          const lifted = dy < -DRAG_LIFT_THRESHOLD;
+          const side = bothEnds ? (e.clientX < window.innerWidth / 2 ? 'left' : 'right') : null;
+          setDrag({ dx, dy, side, lifted });
+        }
+      };
+      const endDrag = (e) => {
+        if (!dragEnabled || !dragRef.current) return;
+        const dx = e.clientX - dragRef.current.startX;
+        const dy = e.clientY - dragRef.current.startY;
+        const wasActive = dragRef.current.active;
+        dragRef.current = null;
+        setDrag(null);
+        if (!playable) return;
+        if (wasActive && dy < -DRAG_LIFT_THRESHOLD) {
+          const side = bothEnds ? (e.clientX < window.innerWidth / 2 ? 'left' : 'right') : null;
+          onDragPlay(side);
+        } else if (!wasActive) {
+          onClick();
+        }
+        // dragged but never lifted past threshold: cancel, snap back, no play
+      };
+
+      const dragStyle = drag ? {
+        transform: 'translate(' + drag.dx + 'px, ' + drag.dy + 'px) scale(' + (drag.lifted ? 1.18 : 1.05) + ')',
+        zIndex: 60,
+        boxShadow: drag.lifted ? '0 12px 24px rgba(0,0,0,0.45)' : '0 4px 10px rgba(0,0,0,0.3)',
+        transition: 'none',
+        borderColor: drag.lifted && bothEnds ? (drag.side === 'left' ? '#3b82f6' : '#f97316') : undefined
+      } : null;
+
+      if (dragEnabled) {
+        return (
+          <div
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            className={'domino-tile inline-flex flex-col relative ' + (playable ? 'playable' : 'unplayable')}
+            style={{ width: hDims.w, height: hDims.h, touchAction: playable ? 'none' : 'auto', ...dragStyle }}
+          >
+            {drag && drag.lifted && bothEnds && (
+              <div style={{ position: 'absolute', top: -22, left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 6, color: '#fff', background: drag.side === 'left' ? '#3b82f6' : '#f97316' }}>
+                {drag.side === 'left' ? '◀ Esquerda' : 'Direita ▶'}
+              </div>
+            )}
+            <div className="flex-1 flex items-center justify-center" style={{ borderBottom: '1.5px solid #c8b898' }}>
+              <DominoDots value={tile.left} dotPxProp={hDims.dot} containerPxProp={hDims.cont} dotColor={_dc(tile.left)} />
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <DominoDots value={tile.right} dotPxProp={hDims.dot} containerPxProp={hDims.cont} dotColor={_dc(tile.right)} />
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div
           onClick={(e) => { if (!fired.current) onClick(); }}
@@ -1221,6 +1294,9 @@
       const setDotColorScheme = (v) => { setDotColorSchemeRaw(v); localStorage.setItem('domino_dot_color_scheme', v); };
       const [showEndBadges, setShowEndBadgesRaw] = useState(localStorage.getItem('domino_end_badges') === 'true');
       const setShowEndBadges = (v) => { setShowEndBadgesRaw(v); localStorage.setItem('domino_end_badges', v ? 'true' : 'false'); };
+      // 2026-07-03: v1.1 drag-to-play toggle. Default off (tap-only ships in v1.0).
+      const [dragToPlay, setDragToPlayRaw] = useState(localStorage.getItem('domino_drag_to_play') === 'true');
+      const setDragToPlay = (v) => { setDragToPlayRaw(v); localStorage.setItem('domino_drag_to_play', v ? 'true' : 'false'); };
       // 2026-05-24: Pernambuco authentic play direction. Default = anti-horário (CCW).
       // 'ccw' => next seat is (s+3)%4; 'cw' => next seat is (s+1)%4.
       const _storedPlayDir = localStorage.getItem('domino_play_direction');
@@ -6509,6 +6585,16 @@
                         <div style={{ position: 'absolute', top: 2, left: showEndBadges ? 22 : 2, width: 24, height: 24, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left 0.15s' }} />
                       </button>
                     </div>
+                    <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>Arrastar para jogar</div>
+                        <div style={{ fontSize: 11, color: '#5c4d3c' }}>{'Arraste a pe\u00E7a para cima em vez de tocar'}</div>
+                      </div>
+                      <button onClick={() => setDragToPlay(!dragToPlay)}
+                        style={{ width: 48, height: 28, borderRadius: 14, border: 'none', background: dragToPlay ? '#10b981' : '#d4cfb6', position: 'relative', cursor: 'pointer', transition: 'background 0.15s' }}>
+                        <div style={{ position: 'absolute', top: 2, left: dragToPlay ? 22 : 2, width: 24, height: 24, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'left 0.15s' }} />
+                      </button>
+                    </div>
                     <button onClick={() => { setShowGameSettings(false); setShowStats(true); }}
                       style={{ width: '100%', padding: '12px', borderRadius: 8, background: '#fcfbf7', border: '1px solid #d4cfb6', color: 'var(--ds-text-on-cream)', fontWeight: 600, fontSize: 14, cursor: 'pointer', marginBottom: 8 }}>
                       {'Ver estat\u00EDsticas'}
@@ -7128,9 +7214,15 @@
                           playable={isMyTurn && canPlayTile(tile)}
                           hDims={hDims}
                           dotColorScheme={dotColorScheme}
+                          dragEnabled={dragToPlay}
+                          bothEnds={canPlayOnBothEnds(tile)}
                           onClick={() => {
                             if (!isMyTurn || !canPlayTile(tile)) return;
                             playTile(tile);
+                          }}
+                          onDragPlay={(side) => {
+                            if (!isMyTurn || !canPlayTile(tile)) return;
+                            playTile(tile, side);
                           }}
                         />
                       ))}
