@@ -9,6 +9,7 @@
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@babel/preset-react": "^7.24.0",
+    "clean-css": "^5.3.3",
     "terser": "^5.31.0"
   }
 }

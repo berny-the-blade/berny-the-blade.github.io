@@ -12,6 +12,7 @@
 // - Minifies + mangles the transpiled output with Terser.
 // - Also minifies the three trailing plain <script> blocks (service worker
 //   registration, wake lock, EN/PT translator) with Terser directly.
+// - Minifies the inline <style> block with clean-css.
 // - Removes the @babel/standalone CDN <script> tag (no longer needed since
 //   JSX is now pre-compiled).
 // - Copies sibling static assets (domino_model.bin obfuscated, everything
@@ -24,6 +25,7 @@ const fs = require('fs');
 const path = require('path');
 const babel = require('@babel/core');
 const { minify } = require('terser');
+const CleanCSS = require('clean-css');
 
 const SRC_DIR = __dirname;
 const SRC_HTML = path.join(SRC_DIR, 'index.html');
@@ -62,7 +64,21 @@ function buildDecodeSnippet(key) {
 }
 
 async function main() {
-  const html = fs.readFileSync(SRC_HTML, 'utf8');
+  let html = fs.readFileSync(SRC_HTML, 'utf8');
+  const srcKb = (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
+
+  // --- Minify the inline <style> block ---
+  const styleStart = html.indexOf('<style>');
+  const styleEnd = html.indexOf('</style>');
+  if (styleStart === -1 || styleEnd === -1) {
+    throw new Error('Could not find <style>...</style> block in source HTML.');
+  }
+  const styleContentStart = styleStart + '<style>'.length;
+  const cssSource = html.slice(styleContentStart, styleEnd);
+  console.log('Minifying <style> block with clean-css...');
+  const minifiedCss = new CleanCSS({}).minify(cssSource);
+  if (minifiedCss.errors.length) throw new Error(minifiedCss.errors.join('\n'));
+  html = html.slice(0, styleContentStart) + minifiedCss.styles + html.slice(styleEnd);
 
   // --- Locate the inline JSX <script type="text/babel"> block ---
   const babelTagStart = html.indexOf(BABEL_OPEN_TAG);
@@ -153,7 +169,6 @@ async function main() {
   fs.mkdirSync(DIST_DIR, { recursive: true });
   fs.writeFileSync(DIST_HTML, output, 'utf8');
 
-  const srcKb = (Buffer.byteLength(html, 'utf8') / 1024).toFixed(1);
   const distKb = (Buffer.byteLength(output, 'utf8') / 1024).toFixed(1);
   console.log(`Wrote ${DIST_HTML}`);
   console.log(`Source index.html: ${srcKb} KB`);
