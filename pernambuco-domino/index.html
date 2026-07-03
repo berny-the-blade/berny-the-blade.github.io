@@ -690,23 +690,26 @@
       // --- Place first tile to the RIGHT of the TL dial, at the top ---
       // Starting below the dial put tile #1 too close on small screens.
       // Starting to the right keeps the first tile completely clear of the dial zone.
-      const d0 = dimOf(R);
+      const isDouble0 = board[0] && board[0].left === board[0].right;
+      const d0 = isDouble0 ? { w: VW, h: HW } : dimOf(R);
       let sx = avoidTL > 0 ? avoidTL : pads.left;
       let sy = pads.top;
       placed.push({ x: sx, y: sy, w: d0.w, h: d0.h });
-      const result = [{ i: 0, x: sx, y: sy, orient: 'horizontal', flip: false }];
+      const result = [{ i: 0, x: sx, y: sy, orient: isDouble0 ? 'vertical' : 'horizontal', flip: false }];
       let dir = R;
 
       // --- Place remaining tiles ---
       for (let i = 1; i < n; i++) {
         const prev = placed[i - 1];
+        const isDoubleI = board[i] && board[i].left === board[i].right;
+        const dOverride = (pos) => isDoubleI ? { ...pos, w: VW, h: HW } : pos;
         let done = false;
 
         // 1. Try continuing straight
-        const s = straight(prev, dir);
+        const s = dOverride(straight(prev, dir));
         if (ok(s.x, s.y, s.w, s.h)) {
           placed.push({ x: s.x, y: s.y, w: s.w, h: s.h });
-          result.push({ i, x: s.x, y: s.y, orient: orientOf(dir), flip: flipOf(dir) });
+          result.push({ i, x: s.x, y: s.y, orient: isDoubleI ? 'vertical' : orientOf(dir), flip: flipOf(dir) });
           done = true;
           continue;
         }
@@ -715,10 +718,10 @@
         let tryDir = dir;
         for (let t = 0; t < 3; t++) {
           const nd = nextCW(tryDir);
-          const tp = turn(prev, dir, nd);
+          const tp = dOverride(turn(prev, dir, nd));
           if (ok(tp.x, tp.y, tp.w, tp.h)) {
             placed.push({ x: tp.x, y: tp.y, w: tp.w, h: tp.h });
-            result.push({ i, x: tp.x, y: tp.y, orient: orientOf(nd), flip: flipOf(nd) });
+            result.push({ i, x: tp.x, y: tp.y, orient: isDoubleI ? 'vertical' : orientOf(nd), flip: flipOf(nd) });
             dir = nd;
             done = true;
             break;
@@ -906,7 +909,7 @@
         6: [[0,0],[0,2],[1,0],[1,2],[2,0],[2,2]]
       };
       const dots = patterns[value] || [];
-      const pad = size === 'small' ? '12%' : '10%';
+      const pad = '12%';
       return (
         <div style={{ width: containerPx, height: containerPx, position: 'relative' }}>
           {dots.map((pos, idx) => (
@@ -5580,7 +5583,8 @@
 
       // Domino dots pattern
       /* Hand tiles same size as board tiles (vertical orientation: vw × hw) */
-      const hDims = { w: bDims.vw, h: bDims.hw, dot: bDims.vw <= 22 ? 3 : bDims.vw <= 26 ? 4 : 5, cont: bDims.vw <= 22 ? 15 : bDims.vw <= 26 ? 18 : 22 };
+      const hvw = Math.round(bDims.vw * 1.5), hhw = Math.round(bDims.hw * 1.5);
+      const hDims = { w: hvw, h: hhw, dot: hvw <= 28 ? 4 : hvw <= 34 ? 5 : 6, cont: hvw <= 28 ? 20 : hvw <= 34 ? 24 : 28 };
 
       const BoardTile = ({ tile, orientation, flipped, extraStyle, hw: hwOverride, vw: vwOverride }) => {
         const isVertical = orientation === 'vertical';
@@ -7022,8 +7026,8 @@
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                   }}>
                     <span className="text-[11px] font-bold text-white/80">{choosingTile.left}-{choosingTile.right}:</span>
-                    <button onClick={() => { playTile(choosingTile, 'left'); setChoosingTile(null); }} className="side-btn left" style={{ padding: '4px 10px', fontSize: 11 }}>Esq ({gameState.leftEnd})</button>
-                    <button onClick={() => { playTile(choosingTile, 'right'); setChoosingTile(null); }} className="side-btn right" style={{ padding: '4px 10px', fontSize: 11 }}>Dir ({gameState.rightEnd})</button>
+                    <button onClick={() => { playTile(choosingTile, 'left'); setChoosingTile(null); }} className="side-btn left" style={{ padding: '4px 10px', fontSize: 11 }}>← Esquerda ({gameState.leftEnd})</button>
+                    <button onClick={() => { playTile(choosingTile, 'right'); setChoosingTile(null); }} className="side-btn right" style={{ padding: '4px 10px', fontSize: 11 }}>Direita ({gameState.rightEnd}) →</button>
                     <button onClick={() => setChoosingTile(null)} className="text-white/30 text-[10px] hover:text-white/60">✕</button>
                   </div>
                 )}
