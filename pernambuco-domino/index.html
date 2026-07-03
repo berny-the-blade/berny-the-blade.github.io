@@ -896,7 +896,16 @@
     }
 
     // === Stable component definitions (outside App to prevent remount on every render) ===
-    const DominoDots = ({ value, size = 'normal', dotPxProp, containerPxProp, isHoriz }) => {
+    // Colored dot scheme: [highlight, shadow] per pip value (0 = blank, no entry needed)
+    const DOT_COLORS = {
+      1: ['#2a2a2a', '#111111'],
+      2: ['#22c55e', '#15803d'],
+      3: ['#f87171', '#b91c1c'],
+      4: ['#fb923c', '#c2410c'],
+      5: ['#60a5fa', '#1d4ed8'],
+      6: ['#c084fc', '#7c3aed'],
+    };
+    const DominoDots = ({ value, size = 'normal', dotPxProp, containerPxProp, isHoriz, dotColor }) => {
       const dotPx = dotPxProp || (size === 'small' ? 4 : size === 'board' ? 5 : 7);
       const containerPx = containerPxProp || (size === 'small' ? 18 : size === 'board' ? 22 : 32);
       const patterns = isHoriz ? {
@@ -929,7 +938,8 @@
                 position: 'absolute',
                 top: pos[0] === 0 ? pad : pos[0] === 1 ? '50%' : `calc(100% - ${pad})`,
                 left: pos[1] === 0 ? pad : pos[1] === 1 ? '50%' : `calc(100% - ${pad})`,
-                transform: 'translate(-50%, -50%)'
+                transform: 'translate(-50%, -50%)',
+                ...(dotColor ? { background: `radial-gradient(circle, ${dotColor[0]} 55%, ${dotColor[1]} 100%)` } : {})
               }}
             />
           ))}
@@ -937,7 +947,8 @@
       );
     };
 
-    const DominoTile = ({ tile, playable, onClick, hDims }) => {
+    const DominoTile = ({ tile, playable, onClick, hDims, dotColorScheme }) => {
+      const _dc = (v) => (dotColorScheme === 'colored' && DOT_COLORS[v]) ? DOT_COLORS[v] : null;
       const fired = React.useRef(false);
       const handleTouch = (e) => {
         if (!playable) return;
@@ -955,10 +966,10 @@
           style={{ width: hDims.w, height: hDims.h }}
         >
           <div className="flex-1 flex items-center justify-center" style={{ borderBottom: '1.5px solid #c8b898' }}>
-            <DominoDots value={tile.left} dotPxProp={hDims.dot} containerPxProp={hDims.cont} />
+            <DominoDots value={tile.left} dotPxProp={hDims.dot} containerPxProp={hDims.cont} dotColor={_dc(tile.left)} />
           </div>
           <div className="flex-1 flex items-center justify-center">
-            <DominoDots value={tile.right} dotPxProp={hDims.dot} containerPxProp={hDims.cont} />
+            <DominoDots value={tile.right} dotPxProp={hDims.dot} containerPxProp={hDims.cont} dotColor={_dc(tile.right)} />
           </div>
         </div>
       );
@@ -1206,6 +1217,8 @@
       }
       const [tileLayout, setTileLayoutRaw] = useState(_initialLayout);
       const setTileLayout = (v) => { setTileLayoutRaw(v); localStorage.setItem('domino_tile_layout', v); };
+      const [dotColorScheme, setDotColorSchemeRaw] = useState(localStorage.getItem('domino_dot_color_scheme') || 'classic');
+      const setDotColorScheme = (v) => { setDotColorSchemeRaw(v); localStorage.setItem('domino_dot_color_scheme', v); };
       const [showEndBadges, setShowEndBadgesRaw] = useState(localStorage.getItem('domino_end_badges') === 'true');
       const setShowEndBadges = (v) => { setShowEndBadgesRaw(v); localStorage.setItem('domino_end_badges', v ? 'true' : 'false'); };
       // 2026-05-24: Pernambuco authentic play direction. Default = anti-horário (CCW).
@@ -5604,6 +5617,7 @@
         const hw = hwOverride || bDims.hw, vw = vwOverride || bDims.vw;
         const bDotPx = vw <= 11 ? 1 : vw <= 16 ? 2 : vw <= 22 ? 3 : vw <= 26 ? 4 : 5;
         const bContPx = vw <= 11 ? 8 : vw <= 16 ? 12 : vw <= 22 ? 15 : vw <= 26 ? 18 : 22;
+        const _bdc = (v) => (dotColorScheme === 'colored' && DOT_COLORS[v]) ? DOT_COLORS[v] : null;
         return (
           <div
             className="board-tile inline-flex"
@@ -5612,11 +5626,11 @@
               : { width: hw, height: vw, flexDirection: 'row' }, extraStyle || {})}
           >
             <div className="flex-1 flex items-center justify-center">
-              <DominoDots value={val1} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
+              <DominoDots value={val1} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} dotColor={_bdc(val1)} />
             </div>
             <div style={dividerStyle}></div>
             <div className="flex-1 flex items-center justify-center">
-              <DominoDots value={val2} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
+              <DominoDots value={val2} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} dotColor={_bdc(val2)} />
             </div>
           </div>
         );
@@ -5844,6 +5858,14 @@
                     <div style={{ display: 'flex', gap: 6 }}>
                       {[{k:'ccw',l:'Anti-horário'},{k:'cw',l:'Horário'}].map(d => (
                         <button key={d.k} onClick={() => setPlayDirection(d.k)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, fontWeight: 700, fontSize: 14, border: playDirection === d.k ? '2px solid var(--ds-brass-dark)' : '1px solid #d4cfb6', background: playDirection === d.k ? 'var(--ds-brass-light)' : '#fcfbf7', color: 'var(--ds-text-on-cream)', cursor: 'pointer' }}>{d.l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{'Cor das pedras'}</div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {[{k:'classic',l:'Clássico'},{k:'colored',l:'Colorido'}].map(c => (
+                        <button key={c.k} onClick={() => setDotColorScheme(c.k)} style={{ flex: 1, padding: '10px 0', borderRadius: 8, fontWeight: 700, fontSize: 14, border: dotColorScheme === c.k ? '2px solid var(--ds-brass-dark)' : '1px solid #d4cfb6', background: dotColorScheme === c.k ? 'var(--ds-brass-light)' : '#fcfbf7', color: 'var(--ds-text-on-cream)', cursor: 'pointer' }}>{c.l}</button>
                       ))}
                     </div>
                   </div>
@@ -6420,6 +6442,14 @@
                       <div style={{ display: 'flex', gap: 6 }}>
                         {[{k:'snakev2',l:'Em fileiras'},{k:'spiral',l:'Em volta'}].map(ly => (
                           <button key={ly.k} onClick={() => setTileLayout(ly.k)} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontWeight: 700, fontSize: 12, border: tileLayout === ly.k ? '2px solid var(--ds-brass-dark)' : '1px solid #d4cfb6', background: tileLayout === ly.k ? 'var(--ds-brass-light)' : '#fcfbf7', color: 'var(--ds-text-on-cream)', cursor: 'pointer' }}>{ly.l}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>{'Cor das pedras'}</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {[{k:'classic',l:'Clássico'},{k:'colored',l:'Colorido'}].map(c => (
+                          <button key={c.k} onClick={() => setDotColorScheme(c.k)} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontWeight: 700, fontSize: 12, border: dotColorScheme === c.k ? '2px solid var(--ds-brass-dark)' : '1px solid #d4cfb6', background: dotColorScheme === c.k ? 'var(--ds-brass-light)' : '#fcfbf7', color: 'var(--ds-text-on-cream)', cursor: 'pointer' }}>{c.l}</button>
                         ))}
                       </div>
                     </div>
@@ -7063,6 +7093,7 @@
                           tile={tile}
                           playable={isMyTurn && canPlayTile(tile)}
                           hDims={hDims}
+                          dotColorScheme={dotColorScheme}
                           onClick={() => {
                             if (!isMyTurn || !canPlayTile(tile)) return;
                             playTile(tile);
