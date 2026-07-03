@@ -7192,14 +7192,11 @@
                           {won ? 'PARTIDA GANHA!' : 'PARTIDA PERDIDA!'}
                         </div>
                         <div className="text-white/60 text-[11px]">
-                          {isBuchuda
-                            ? (won ? 'Venceu sem deixar ponto!' : 'Perdeu sem marcar!')
-                            : (won ? 'Seu time venceu!' : 'Adversarios venceram!')}
+                          {!isBuchuda && (won ? 'Seu time venceu!' : 'Adversarios venceram!')}
                         </div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-extrabold text-white">{s0} - {s1}</div>
-                        <div className="text-[9px] text-white/40">a {gameState.matchTarget || 6} pts</div>
                       </div>
                     </div>
                     {showShare && (
