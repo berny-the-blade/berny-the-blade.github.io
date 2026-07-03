@@ -14,6 +14,7 @@
   <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-check-compat.js"></script>
   <!-- 443-dim state encoder (Branch B base + symbolic belief). Must load
        before the inline React script that calls SymbolicEncoder.encodeState443. -->
   <script src="symbolic-belief.js"></script>
@@ -499,6 +500,19 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+    // 2026-07-03: App Check (reCAPTCHA v3) — attests requests come from this
+    // app/domain, not a script or a cloned copy hosted elsewhere. Site key is
+    // public by design (same as the Firebase apiKey); the secret key lives
+    // only in the Firebase Console App Check config, never in client code.
+    // Left in monitor-only mode (not enforced) until verified in Console.
+    try {
+      firebase.appCheck().activate(
+        new firebase.appCheck.ReCaptchaV3Provider('6Ldwh0MtAAAAAMyH04bVzJKZKMmfYgVgicYjEGEb'),
+        true
+      );
+    } catch (e) {
+      console.warn('App Check activation failed:', e);
+    }
     const db = firebase.database();
 
     // === Sound Effects (Web Audio API — no external files) ===
