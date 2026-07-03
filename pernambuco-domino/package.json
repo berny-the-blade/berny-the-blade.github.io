@@ -1,0 +1,14 @@
+{
+  "name": "pernambuco-domino-build",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build tooling to produce a minified/mangled dist/index.html from the readable source index.html.",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.24.0",
+    "terser": "^5.31.0"
+  }
+}
