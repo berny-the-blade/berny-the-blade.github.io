@@ -1402,7 +1402,10 @@
               _prevPlayerCount = curCount;
               // Detect game start
               if (data.gameStarted && !data.gameEnded) {
-                if (!_prevGameStarted) playSound('start');
+                if (!_prevGameStarted) {
+                  playSound('start');
+                  if (data.playerSlotMap?.[pid] !== undefined) setPlayerSlot(data.playerSlotMap[pid]);
+                }
                 setScreen('game');
               }
               _prevGameStarted = !!(data.gameStarted && !data.gameEnded);
@@ -1481,7 +1484,10 @@
               _prevPlayerCountJ = curCount;
               // Detect game start
               if (data.gameStarted && !data.gameEnded) {
-                if (!_prevGameStartedJ) playSound('start');
+                if (!_prevGameStartedJ) {
+                  playSound('start');
+                  if (data.playerSlotMap?.[pid] !== undefined) setPlayerSlot(data.playerSlotMap[pid]);
+                }
                 setScreen('game');
               }
               _prevGameStartedJ = !!(data.gameStarted && !data.gameEnded);
@@ -1550,7 +1556,10 @@
             if (curCount > _prevCount) playSound('join');
             _prevCount = curCount;
             if (data.gameStarted && !data.gameEnded) {
-              if (!_prevStarted) playSound('start');
+              if (!_prevStarted) {
+                playSound('start');
+                if (data.playerSlotMap?.[pid] !== undefined) setPlayerSlot(data.playerSlotMap[pid]);
+              }
               setScreen('game');
             }
             _prevStarted = !!(data.gameStarted && !data.gameEnded);
@@ -1605,7 +1614,10 @@
             if (curCount > _prevCount) playSound('join');
             _prevCount = curCount;
             if (d.gameStarted && !d.gameEnded) {
-              if (!_prevStarted) playSound('start');
+              if (!_prevStarted) {
+                playSound('start');
+                if (d.playerSlotMap?.[pid] !== undefined) setPlayerSlot(d.playerSlotMap[pid]);
+              }
               setScreen('game');
             }
             _prevStarted = !!(d.gameStarted && !d.gameEnded);
@@ -1670,6 +1682,26 @@
           }
         } while (highestDoubleTile === null);
 
+        // Randomize partners for all-human 4-player games
+        let shuffledPlayers = null, playerSlotMap = null;
+        if (cfg.humanSlots && cfg.humanSlots.length === 4) {
+          const perm = [0, 1, 2, 3];
+          for (let i = 3; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [perm[i], perm[j]] = [perm[j], perm[i]];
+          }
+          shuffledPlayers = {};
+          playerSlotMap = {};
+          const oldHands = hands.map(h => [...h]);
+          for (let newSlot = 0; newSlot < 4; newSlot++) {
+            const oldSlot = perm[newSlot];
+            shuffledPlayers[newSlot] = gameState.players[oldSlot];
+            hands[newSlot] = oldHands[oldSlot];
+            if (gameState.players[oldSlot]?.id) playerSlotMap[gameState.players[oldSlot].id] = newSlot;
+          }
+          startPlayer = perm.findIndex(old => old === startPlayer);
+        }
+
         // Remove the highest double from the starter's hand and place it on the board
         hands[startPlayer] = hands[startPlayer].filter(t => t.id !== highestDoubleTile.id);
         const nextPlayer = nextSeat(startPlayer);
@@ -1684,6 +1716,8 @@
 
         const game = {
           ...gameState,
+          ...(shuffledPlayers ? { players: shuffledPlayers } : {}),
+          ...(playerSlotMap ? { playerSlotMap } : {}),
           gameStarted: true,
           gameEnded: false,
           hands: hands,
