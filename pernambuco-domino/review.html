@@ -148,24 +148,38 @@
 
   var DATA = JSON.parse(document.getElementById('position-data').textContent);
   var ITEMS = DATA.items;
-  var SESSION_KEY = 'domino_review_' + (DATA.meta.champion_checkpoint || 'session').replace(/[^a-z0-9]/gi, '_');
+  var BASE_KEY = 'domino_review_' + (DATA.meta.champion_checkpoint || 'session').replace(/[^a-z0-9]/gi, '_');
+  var LAST_NAME_KEY = 'domino_review_last_name';
 
   var state = {
     screen: 'start',       // start | position | summary
     idx: 0,
     pendingTile: null,     // tile_idx awaiting a side choice
-    answers: loadAnswers(),
+    reviewerName: null,
+    answers: {},
     startedAt: null,
   };
 
-  function loadAnswers() {
+  function sanitizeName(name) {
+    return (name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'anonimo';
+  }
+  function answersKey(name) {
+    return BASE_KEY + '__' + sanitizeName(name);
+  }
+  function loadAnswers(name) {
     try {
-      var raw = localStorage.getItem(SESSION_KEY);
+      var raw = localStorage.getItem(answersKey(name));
       return raw ? JSON.parse(raw) : {};
     } catch (e) { return {}; }
   }
   function saveAnswers() {
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(state.answers)); } catch (e) {}
+    try { localStorage.setItem(answersKey(state.reviewerName), JSON.stringify(state.answers)); } catch (e) {}
+  }
+  function loadLastName() {
+    try { return localStorage.getItem(LAST_NAME_KEY) || ''; } catch (e) { return ''; }
+  }
+  function saveLastName(name) {
+    try { localStorage.setItem(LAST_NAME_KEY, name); } catch (e) {}
   }
 
   function tileNums(tileStr) {
@@ -173,11 +187,13 @@
     return [parseInt(parts[0], 10), parseInt(parts[1], 10)];
   }
 
+  // Matches index.html's DominoDots portrait layout (the pattern hand tiles
+  // use -- isHoriz is only passed for board tiles, not hand tiles).
   var DOT_PATTERNS = {
     0: [], 1: [[1,1]],
-    2: [[0,0],[2,2]], 3: [[0,0],[1,1],[2,2]],
+    2: [[0,2],[2,0]], 3: [[0,2],[1,1],[2,0]],
     4: [[0,0],[0,2],[2,0],[2,2]], 5: [[0,0],[0,2],[1,1],[2,0],[2,2]],
-    6: [[0,0],[0,1],[0,2],[2,0],[2,1],[2,2]],
+    6: [[0,0],[0,2],[1,0],[1,2],[2,0],[2,2]],
   };
 
   function renderDots(container, value) {
@@ -256,38 +272,63 @@
       'No final, veja quanto sua escolha coincidiu com a IA.';
     card.appendChild(p);
 
+    var nameLabel = document.createElement('div');
+    nameLabel.style.cssText = 'font-size:13px;font-weight:700;margin:14px 0 6px;color:#6b6255;';
+    nameLabel.textContent = 'Seu nome';
+    card.appendChild(nameLabel);
+
+    var nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.placeholder = 'Digite seu nome';
+    nameInput.value = loadLastName();
+    nameInput.autocomplete = 'off';
+    nameInput.style.cssText = 'width:100%;max-width:280px;padding:11px 14px;border-radius:8px;' +
+      'border:2px solid var(--cream-shadow);font-size:16px;text-align:center;font-family:Inter,sans-serif;';
+    card.appendChild(nameInput);
+
+    var resumeNote = document.createElement('div');
+    resumeNote.className = 'footer-note';
+    card.appendChild(resumeNote);
+
+    var resetBtn = document.createElement('button');
+    resetBtn.className = 'export-btn';
+    resetBtn.style.cssText = 'background:transparent;color:var(--cream);border:1px solid var(--text-muted);display:none;';
+    resetBtn.textContent = 'Apagar respostas salvas';
+    resetBtn.onclick = function () {
+      var name = nameInput.value.trim() || 'Anonimo';
+      if (confirm('Apagar as respostas salvas de "' + name + '"?')) {
+        try { localStorage.removeItem(answersKey(name)); } catch (e) {}
+        updateResumeNote();
+      }
+    };
+    card.appendChild(resetBtn);
+
+    function updateResumeNote() {
+      var name = nameInput.value.trim() || 'Anonimo';
+      var existing = loadAnswers(name);
+      var n = Object.keys(existing).length;
+      resumeNote.textContent = n > 0
+        ? (n + ' de ' + ITEMS.length + ' resposta(s) salva(s) para "' + name + '". "Comecar" continua de onde parou.')
+        : '';
+      resetBtn.style.display = n > 0 ? 'block' : 'none';
+    }
+    nameInput.addEventListener('input', updateResumeNote);
+    updateResumeNote();
+
     var startBtn = document.createElement('button');
     startBtn.className = 'start-btn';
     startBtn.textContent = 'Comecar';
     startBtn.onclick = function () {
+      var name = nameInput.value.trim() || 'Anonimo';
+      state.reviewerName = name;
+      saveLastName(name);
+      state.answers = loadAnswers(name);
       state.screen = 'position';
       state.startedAt = Date.now();
       state.idx = firstUnanswered();
       render();
     };
-    card.appendChild(startBtn);
-
-    if (Object.keys(state.answers).length > 0) {
-      var resumeNote = document.createElement('div');
-      resumeNote.className = 'footer-note';
-      resumeNote.textContent = Object.keys(state.answers).length + ' resposta(s) salva(s) neste navegador. "Comecar" continua de onde parou.';
-      card.appendChild(resumeNote);
-
-      var resetBtn = document.createElement('button');
-      resetBtn.className = 'export-btn';
-      resetBtn.style.background = 'transparent';
-      resetBtn.style.color = 'var(--cream)';
-      resetBtn.style.border = '1px solid var(--text-muted)';
-      resetBtn.textContent = 'Apagar respostas salvas';
-      resetBtn.onclick = function () {
-        if (confirm('Apagar todas as respostas salvas?')) {
-          state.answers = {};
-          saveAnswers();
-          render();
-        }
-      };
-      card.appendChild(resetBtn);
-    }
+    card.insertBefore(startBtn, resumeNote);
 
     r.appendChild(topBar);
     r.appendChild(card);
@@ -310,6 +351,12 @@
     count.style.fontSize = '13px';
     count.style.fontWeight = '700';
     count.textContent = (currentIdx + 1) + ' / ' + ITEMS.length;
+    if (state.reviewerName) {
+      var nameTag = document.createElement('span');
+      nameTag.style.cssText = 'font-weight:400;color:var(--text-muted);margin-left:8px;';
+      nameTag.textContent = '(' + state.reviewerName + ')';
+      count.appendChild(nameTag);
+    }
     bar.appendChild(count);
 
     var track = document.createElement('div');
@@ -552,7 +599,16 @@
     var h2 = document.createElement('h2');
     h2.textContent = 'Resumo da Sessao';
     h2.style.textAlign = 'center';
+    h2.style.marginBottom = '2px';
     card.appendChild(h2);
+
+    if (state.reviewerName) {
+      var nameSub = document.createElement('div');
+      nameSub.className = 'muted';
+      nameSub.style.textAlign = 'center';
+      nameSub.textContent = state.reviewerName;
+      card.appendChild(nameSub);
+    }
 
     var rows = ITEMS.map(function (item) {
       var ans = state.answers[item.id];
@@ -625,6 +681,7 @@
   function exportResults() {
     var out = {
       exported_at: new Date().toISOString(),
+      reviewer_name: state.reviewerName,
       champion_checkpoint: DATA.meta.champion_checkpoint,
       items: ITEMS.map(function (item) {
         var ans = state.answers[item.id];
@@ -644,7 +701,7 @@
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
-    a.download = 'domino_human_review_results.json';
+    a.download = 'domino_review_' + sanitizeName(state.reviewerName) + '.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
