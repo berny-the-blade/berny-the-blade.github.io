@@ -10,6 +10,8 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Prata&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -158,6 +160,11 @@
   .tag-miss { color: #b91c1c; font-weight: 700; }
 
   .footer-note { color: var(--text-muted); font-size: 11px; text-align: center; margin-top: 18px; max-width: 500px; }
+
+  .sync-status { text-align: center; font-size: 12px; margin: 8px 0; }
+  .sync-status.sending { color: #92400e; }
+  .sync-status.ok { color: #15803d; }
+  .sync-status.error { color: #b91c1c; }
 </style>
 </head>
 <body>
@@ -515,6 +522,24 @@
   var BASE_KEY = 'domino_review_' + (DATA.meta.champion_checkpoint || 'session').replace(/[^a-z0-9]/gi, '_');
   var LAST_NAME_KEY = 'domino_review_last_name';
 
+  // Same public Firebase config as index.html (apiKey is public by design,
+  // same as the live game). Writes go to review_results/, an isolated node
+  // separate from rooms/ (live game state) and telemetry/ (gameplay data) --
+  // see firebase/database.rules.json.
+  var _fbReady = false;
+  try {
+    firebase.initializeApp({
+      apiKey: "AIzaSyCbfXAy3Z_Hs_mQRNHCLk30Ext4sq3k-jA",
+      authDomain: "domino-pernambuco.firebaseapp.com",
+      databaseURL: "https://domino-pernambuco-default-rtdb.firebaseio.com",
+      projectId: "domino-pernambuco",
+      storageBucket: "domino-pernambuco.firebasestorage.app",
+      messagingSenderId: "464393298578",
+      appId: "1:464393298578:web:f5781c8ccc0edffed7fc4b"
+    });
+    _fbReady = true;
+  } catch (e) { console.warn('Firebase init failed:', e); }
+
   var state = {
     screen: 'start',       // start | position | summary
     idx: 0,
@@ -533,8 +558,28 @@
   function loadAnswers(name) {
     try {
       var raw = localStorage.getItem(answersKey(name));
-      return raw ? JSON.parse(raw) : {};
+      var parsed = raw ? JSON.parse(raw) : {};
+      return discardStaleAnswers(parsed);
     } catch (e) { return {}; }
+  }
+  // Defends against a dataset regeneration mid-session (happened once during
+  // testing: the position bank was rebuilt with fresh unseeded self-play
+  // while a saved localStorage answer still referenced the OLD game under
+  // the same id, and the stale action_idx got silently exported as "pass").
+  // A saved answer is only trustworthy if its action_idx is still a legal
+  // action for that id's CURRENT position; otherwise treat it as unanswered.
+  function discardStaleAnswers(answers) {
+    var itemById = {};
+    ITEMS.forEach(function (it) { itemById[it.id] = it; });
+    var clean = {};
+    Object.keys(answers).forEach(function (id) {
+      var item = itemById[id];
+      var ans = answers[id];
+      if (!item) return; // id no longer exists in current dataset at all
+      var stillLegal = item.legal_actions.some(function (a) { return a.action_idx === ans.human_action_idx; });
+      if (stillLegal) clean[id] = ans;
+    });
+    return clean;
   }
   function saveAnswers() {
     try { localStorage.setItem(answersKey(state.reviewerName), JSON.stringify(state.answers)); } catch (e) {}
@@ -1052,6 +1097,11 @@
     });
     card.appendChild(table);
 
+    var syncStatus = document.createElement('div');
+    syncStatus.className = 'sync-status';
+    card.appendChild(syncStatus);
+    autoSubmitToFirebase(syncStatus);
+
     var exportBtn = document.createElement('button');
     exportBtn.className = 'export-btn';
     exportBtn.textContent = 'Baixar resultados (JSON)';
@@ -1070,8 +1120,31 @@
     r.appendChild(card);
   }
 
-  function exportResults() {
-    var out = {
+  var _autoSubmitAttempted = false;
+  function autoSubmitToFirebase(statusEl) {
+    if (_autoSubmitAttempted) return;
+    _autoSubmitAttempted = true;
+    if (!_fbReady) {
+      statusEl.className = 'sync-status error';
+      statusEl.textContent = 'Nao foi possivel conectar -- use "Baixar resultados" abaixo.';
+      return;
+    }
+    statusEl.className = 'sync-status sending';
+    statusEl.textContent = 'Enviando resultados...';
+    var payload = buildExportPayload();
+    var entryId = sanitizeName(state.reviewerName) + '_' + Date.now();
+    firebase.database().ref('review_results/' + entryId).set(payload).then(function () {
+      statusEl.className = 'sync-status ok';
+      statusEl.textContent = 'Resultados enviados automaticamente.';
+    }).catch(function (err) {
+      console.warn('Auto-submit failed:', err);
+      statusEl.className = 'sync-status error';
+      statusEl.textContent = 'Envio automatico falhou -- use "Baixar resultados" abaixo.';
+    });
+  }
+
+  function buildExportPayload() {
+    return {
       exported_at: new Date().toISOString(),
       reviewer_name: state.reviewerName,
       champion_checkpoint: DATA.meta.champion_checkpoint,
@@ -1079,8 +1152,12 @@
         var ans = state.answers[item.id];
         if (!ans) return null;
         var action = findAction(item, ans.human_action_idx);
+        // action should always resolve -- discardStaleAnswers() already drops
+        // any saved answer whose action_idx isn't legal for this item. If it
+        // ever doesn't (shouldn't happen), say so plainly instead of the old
+        // bug where this silently defaulted to "pass".
         var label = {
-          preferred_actions: [action ? (action.side === 'pass' ? 'pass' : action.tile_str + '_' + action.side) : 'pass'],
+          preferred_actions: [action ? (action.side === 'pass' ? 'pass' : action.tile_str + '_' + action.side) : 'STALE_UNRESOLVED'],
           preferred_tiles: action && action.side !== 'pass' ? [action.tile_str] : [],
           human_action_idx: ans.human_action_idx,
           elapsed_ms: ans.elapsed_ms,
@@ -1089,6 +1166,10 @@
         return Object.assign({}, item, { label: label });
       }).filter(Boolean),
     };
+  }
+
+  function exportResults() {
+    var out = buildExportPayload();
     var blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
