@@ -393,6 +393,22 @@
     const [step, setStep] = React.useState(1);
     React.useEffect(() => { setStep(1); }, [history]);
 
+    // The board container renders at width:'100%' of the card (which is
+    // narrower than our fallback on most phones/windows) -- layoutSnakeV2
+    // needs the REAL available width or it miscounts how many tiles fit per
+    // row and positions later tiles past the visible edge. Measure it.
+    const containerRef = React.useRef(null);
+    const [measuredW, setMeasuredW] = React.useState(540);
+    React.useLayoutEffect(() => {
+      function measure() {
+        const w = containerRef.current && containerRef.current.clientWidth;
+        if (w > 0) setMeasuredW(w);
+      }
+      measure();
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }, []);
+
     const boardArr = React.useMemo(() => {
       const arr = [];
       for (let s = 0; s < step && s < segments.length; s++) {
@@ -416,8 +432,20 @@
       return arr;
     }, [segments, step]);
 
-    const W = 540, H = 230, HW = 48, VW = 24;
-    const layout = React.useMemo(() => layoutSnakeV2(boardArr, W, H, HW, VW, 1, 8), [boardArr]);
+    const HW = 48, VW = 24;
+    const W = Math.max(160, measuredW - 16);
+    // Row count only depends on W (rows wrap by cumulative width), so a
+    // fixed H can't fit however many rows a narrow W forces -- measure with
+    // a generous upper bound, then size the container to what's actually
+    // needed instead of clipping/overflowing past a guessed height.
+    const layout = React.useMemo(() => layoutSnakeV2(boardArr, W, 2000, HW, VW, 1, 8), [boardArr, W]);
+    const H = React.useMemo(() => {
+      if (!layout.tiles.length) return 60;
+      const maxY = Math.max.apply(null, layout.tiles.map(function (p) {
+        return p.y + (p.orient === 'horizontal' ? VW : HW);
+      }));
+      return Math.max(60, Math.round(maxY) + 8);
+    }, [layout]);
 
     const caption = segments[step - 1] ? segments[step - 1].map(function (e) {
       const who = REPLAY_RELABEL[e.actor_rel] || e.actor_rel;
@@ -428,7 +456,7 @@
 
     return (
       <div>
-        <div style={{ position: 'relative', width: '100%', height: H, background: '#0f3d1e', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+        <div ref={containerRef} style={{ position: 'relative', width: '100%', height: H, background: '#0f3d1e', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
           {layout.tiles.map((p) => {
             const t = boardArr[p.i];
             const tw = p.orient === 'horizontal' ? HW : VW;
