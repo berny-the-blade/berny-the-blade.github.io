@@ -387,6 +387,8 @@
     return segments;
   }
 
+  const MIN_UNIT = 9, MAX_UNIT = 26; // VW clamp: legible dots vs. not comically large on short boards
+
   function BoardReplay({ history }) {
     const segments = React.useMemo(() => buildSegments(history), [history]);
     const maxStep = segments.length;
@@ -416,23 +418,50 @@
       return arr;
     }, [segments, step]);
 
-    const HW = 40, VW = 20;
+    // Size tiles to fit the phone screen instead of asking users to scroll:
+    // measure the real container width, and shrink VW/HW so the FULL final
+    // board (not just the current step -- keeps tile size stable while
+    // stepping through the replay) fits in one row without scrolling.
+    const containerRef = React.useRef(null);
+    const [measuredW, setMeasuredW] = React.useState(360);
+    React.useLayoutEffect(() => {
+      function measure() {
+        const w = containerRef.current && containerRef.current.clientWidth;
+        if (w > 0) setMeasuredW(w);
+      }
+      measure();
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }, []);
+
+    const totalUnits = React.useMemo(() => {
+      let units = 0;
+      segments.forEach(function (seg) {
+        const playEntry = seg[seg.length - 1];
+        if (playEntry.is_pass) return;
+        const nums = tileNumsFromStr(playEntry.tile_str);
+        units += (nums[0] === nums[1]) ? 1 : 2; // double = 1 VW-unit wide, non-double = 2 (HW)
+      });
+      return Math.max(1, units);
+    }, [segments]);
+
+    const unitPx = React.useMemo(() => {
+      const avail = Math.max(40, measuredW - 16);
+      return Math.max(MIN_UNIT, Math.min(MAX_UNIT, Math.floor(avail / totalUnits)));
+    }, [measuredW, totalUnits]);
+
+    const VW = unitPx, HW = unitPx * 2;
     const H = HW + 16; // tallest single-row element (a double, HW tall) + 8px top/bottom pad
-    // Multi-row wrapping made the board's height balloon on narrow screens
-    // (each extra row adds height, and there's no upper bound on how many
-    // tiles a late-game position has). A review tool reads fine as a single
-    // horizontally-scrollable strip instead -- fixed, small height, and
-    // width sized to the content itself (never wraps, never overflows).
     // H must match what's actually rendered below -- layoutSnakeV2 centers
     // tiles vertically using this same H, so a mismatch pushes tiles past
     // the rendered container's edge.
     const contentW = React.useMemo(() => {
       const sum = boardArr.reduce(function (s, t) { return s + (t.left === t.right ? VW : HW); }, 0);
       return Math.max(1, sum) + 16;
-    }, [boardArr]);
+    }, [boardArr, VW, HW]);
     const layout = React.useMemo(
       () => layoutSnakeV2(boardArr, contentW + 40, H, HW, VW, 1, 8),
-      [boardArr, contentW]
+      [boardArr, contentW, HW, VW, H]
     );
 
     const caption = segments[step - 1] ? segments[step - 1].map(function (e) {
@@ -444,7 +473,7 @@
 
     return (
       <div>
-        <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', background: '#0f3d1e', borderRadius: 10, marginBottom: 8 }}>
+        <div ref={containerRef} style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', background: '#0f3d1e', borderRadius: 10, marginBottom: 8 }}>
           <div style={{ position: 'relative', width: contentW, height: H, margin: '0 auto' }}>
             {layout.tiles.map((p) => {
               const t = boardArr[p.i];
