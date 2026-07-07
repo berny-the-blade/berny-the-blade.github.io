@@ -393,22 +393,6 @@
     const [step, setStep] = React.useState(1);
     React.useEffect(() => { setStep(1); }, [history]);
 
-    // The board container renders at width:'100%' of the card (which is
-    // narrower than our fallback on most phones/windows) -- layoutSnakeV2
-    // needs the REAL available width or it miscounts how many tiles fit per
-    // row and positions later tiles past the visible edge. Measure it.
-    const containerRef = React.useRef(null);
-    const [measuredW, setMeasuredW] = React.useState(540);
-    React.useLayoutEffect(() => {
-      function measure() {
-        const w = containerRef.current && containerRef.current.clientWidth;
-        if (w > 0) setMeasuredW(w);
-      }
-      measure();
-      window.addEventListener('resize', measure);
-      return () => window.removeEventListener('resize', measure);
-    }, []);
-
     const boardArr = React.useMemo(() => {
       const arr = [];
       for (let s = 0; s < step && s < segments.length; s++) {
@@ -432,20 +416,24 @@
       return arr;
     }, [segments, step]);
 
-    const HW = 48, VW = 24;
-    const W = Math.max(160, measuredW - 16);
-    // Row count only depends on W (rows wrap by cumulative width), so a
-    // fixed H can't fit however many rows a narrow W forces -- measure with
-    // a generous upper bound, then size the container to what's actually
-    // needed instead of clipping/overflowing past a guessed height.
-    const layout = React.useMemo(() => layoutSnakeV2(boardArr, W, 2000, HW, VW, 1, 8), [boardArr, W]);
-    const H = React.useMemo(() => {
-      if (!layout.tiles.length) return 60;
-      const maxY = Math.max.apply(null, layout.tiles.map(function (p) {
-        return p.y + (p.orient === 'horizontal' ? VW : HW);
-      }));
-      return Math.max(60, Math.round(maxY) + 8);
-    }, [layout]);
+    const HW = 40, VW = 20;
+    const H = HW + 16; // tallest single-row element (a double, HW tall) + 8px top/bottom pad
+    // Multi-row wrapping made the board's height balloon on narrow screens
+    // (each extra row adds height, and there's no upper bound on how many
+    // tiles a late-game position has). A review tool reads fine as a single
+    // horizontally-scrollable strip instead -- fixed, small height, and
+    // width sized to the content itself (never wraps, never overflows).
+    // H must match what's actually rendered below -- layoutSnakeV2 centers
+    // tiles vertically using this same H, so a mismatch pushes tiles past
+    // the rendered container's edge.
+    const contentW = React.useMemo(() => {
+      const sum = boardArr.reduce(function (s, t) { return s + (t.left === t.right ? VW : HW); }, 0);
+      return Math.max(1, sum) + 16;
+    }, [boardArr]);
+    const layout = React.useMemo(
+      () => layoutSnakeV2(boardArr, contentW + 40, H, HW, VW, 1, 8),
+      [boardArr, contentW]
+    );
 
     const caption = segments[step - 1] ? segments[step - 1].map(function (e) {
       const who = REPLAY_RELABEL[e.actor_rel] || e.actor_rel;
@@ -456,17 +444,19 @@
 
     return (
       <div>
-        <div ref={containerRef} style={{ position: 'relative', width: '100%', height: H, background: '#0f3d1e', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
-          {layout.tiles.map((p) => {
-            const t = boardArr[p.i];
-            const tw = p.orient === 'horizontal' ? HW : VW;
-            const th = p.orient === 'horizontal' ? VW : HW;
-            return (
-              <div key={p.i} style={{ position: 'absolute', left: p.x, top: p.y, width: tw, height: th }}>
-                <ReplayBoardTile tile={t} orientation={p.orient} flipped={p.flip} hw={HW} vw={VW} />
-              </div>
-            );
-          })}
+        <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', background: '#0f3d1e', borderRadius: 10, marginBottom: 8 }}>
+          <div style={{ position: 'relative', width: contentW, height: H, margin: '0 auto' }}>
+            {layout.tiles.map((p) => {
+              const t = boardArr[p.i];
+              const tw = p.orient === 'horizontal' ? HW : VW;
+              const th = p.orient === 'horizontal' ? VW : HW;
+              return (
+                <div key={p.i} style={{ position: 'absolute', left: p.x, top: p.y, width: tw, height: th }}>
+                  <ReplayBoardTile tile={t} orientation={p.orient} flipped={p.flip} hw={HW} vw={VW} />
+                </div>
+              );
+            })}
+          </div>
         </div>
         <div className="replay-caption">{caption}</div>
         <div className="replay-controls">
