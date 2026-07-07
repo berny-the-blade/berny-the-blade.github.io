@@ -342,18 +342,22 @@
       : { borderRight: '1px solid #b8a888', height: '100%' };
     const bDotPx = vw <= 11 ? 1 : vw <= 16 ? 2 : vw <= 22 ? 3 : vw <= 26 ? 4 : 5;
     const bContPx = vw <= 11 ? 8 : vw <= 16 ? 12 : vw <= 22 ? 15 : vw <= 26 ? 18 : 22;
+    const cellStyle = { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0, minHeight: 0 };
     return (
       <div
-        className="board-tile inline-flex"
-        style={Object.assign({ background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }, isVertical
-          ? { width: vw, height: hw, flexDirection: 'column' }
-          : { width: hw, height: vw, flexDirection: 'row' })}
+        className="board-tile"
+        style={Object.assign(
+          { display: 'flex', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', borderRadius: 3, overflow: 'hidden' },
+          isVertical
+            ? { width: vw, height: hw, flexDirection: 'column' }
+            : { width: hw, height: vw, flexDirection: 'row' }
+        )}
       >
-        <div className="flex-1 flex items-center justify-center">
+        <div style={cellStyle}>
           <ReplayDominoDots value={val1} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
         </div>
         <div style={dividerStyle}></div>
-        <div className="flex-1 flex items-center justify-center">
+        <div style={cellStyle}>
           <ReplayDominoDots value={val2} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
         </div>
       </div>
