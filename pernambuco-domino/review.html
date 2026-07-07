@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="robots" content="noindex, nofollow">
+<meta name="google" content="notranslate">
+<title>Revisao de Jogadas — Domino</title>
+<link href="https://fonts.googleapis.com/css2?family=Prata&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --felt-deep: #0f3d1e; --felt-mid: #1a5c2e; --felt-dark: #0a2a14;
+    --cream: #f4f1ea; --cream-deep: #ede6d3; --cream-shadow: #d4cfb6;
+    --brass: #e9c349; --brass-light: #ffe088; --brass-dark: #cba72f;
+    --text-dark: #2a221b; --text-muted: #cac99f;
+    --green-ok: #22c55e; --red-no: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: radial-gradient(ellipse at center, var(--felt-mid) 0%, var(--felt-deep) 55%, var(--felt-dark) 100%);
+    color: var(--cream);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+  }
+  h1, h2, .headline { font-family: 'Prata', Georgia, serif; letter-spacing: 0.5px; }
+  .card {
+    background: var(--cream);
+    color: var(--text-dark);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    padding: 20px;
+    width: 100%;
+    max-width: 640px;
+  }
+  .muted { color: #6b6255; }
+  .top-bar {
+    width: 100%; max-width: 640px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .progress-track {
+    flex: 1; height: 8px; background: rgba(255,255,255,0.15);
+    border-radius: 4px; margin: 0 12px; overflow: hidden;
+  }
+  .progress-fill { height: 100%; background: var(--brass); transition: width 0.25s ease; }
+  .stage-badge {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    padding: 3px 8px; border-radius: 999px; font-weight: 700;
+  }
+  .stage-early { background: #dbeafe; color: #1e40af; }
+  .stage-mid   { background: #fef3c7; color: #92400e; }
+  .stage-late  { background: #fee2e2; color: #991b1b; }
+
+  .board-row { display: flex; justify-content: center; gap: 18px; align-items: center; margin: 14px 0; }
+  .end-tile {
+    width: 56px; height: 56px; border-radius: 10px;
+    background: linear-gradient(180deg, #fff 0%, #f0ece2 100%);
+    border: 2px solid var(--brass-dark);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+  }
+  .end-label { position: absolute; top: -22px; font-size: 11px; font-weight: 700; color: var(--cream); text-transform: uppercase; letter-spacing: 1px; }
+  .board-arrow { font-size: 22px; color: var(--text-muted); }
+
+  .info-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: #6b6255; margin: 6px 0 14px; }
+  .info-pill { background: var(--cream-deep); border: 1px solid var(--cream-shadow); border-radius: 999px; padding: 3px 10px; }
+
+  .recent-line { text-align: center; font-size: 13px; color: #6b6255; margin-bottom: 14px; line-height: 1.6; }
+  .recent-line b { color: var(--text-dark); }
+
+  .hand-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #6b6255; margin: 8px 0 8px; text-align: center; }
+  .hand-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 8px; }
+
+  .domino {
+    width: 46px; height: 92px;
+    background: linear-gradient(180deg, #fff 0%, #f5f1e8 100%);
+    border: 2px solid #d8d2c2;
+    border-radius: 8px;
+    display: flex; flex-direction: column;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+    position: relative;
+  }
+  .domino.legal:hover { transform: translateY(-4px); box-shadow: 0 6px 12px rgba(0,0,0,0.3); border-color: var(--brass-dark); }
+  .domino.illegal { opacity: 0.35; cursor: not-allowed; }
+  .domino.chosen { border-color: var(--green-ok); border-width: 3px; transform: translateY(-4px); }
+  .domino-half { flex: 1; position: relative; }
+  .domino-divider { height: 2px; background: #d8d2c2; margin: 0 6px; }
+  .dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #2a221b; transform: translate(-50%, -50%); }
+
+  .side-prompt { text-align: center; margin: 10px 0; }
+  .side-btn {
+    display: inline-block; margin: 6px; padding: 12px 22px;
+    background: var(--brass); border: none; border-radius: 8px;
+    font-family: 'Prata', Georgia, serif; font-weight: 700; font-size: 15px;
+    cursor: pointer; color: var(--text-dark);
+  }
+  .side-btn:hover { background: var(--brass-light); }
+
+  .reveal-box { margin-top: 16px; border-top: 2px dashed var(--cream-shadow); padding-top: 14px; }
+  .reveal-verdict { text-align: center; font-weight: 700; font-size: 17px; margin-bottom: 10px; font-family: 'Prata', Georgia, serif; }
+  .reveal-match { color: #15803d; }
+  .reveal-miss { color: #b91c1c; }
+  .rank-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }
+  .rank-bar-track { flex: 1; height: 14px; background: var(--cream-deep); border-radius: 7px; overflow: hidden; }
+  .rank-bar-fill { height: 100%; background: var(--brass-dark); }
+  .rank-bar-fill.is-human { background: #15803d; }
+  .rank-label { width: 90px; font-family: monospace; }
+  .rank-pct { width: 46px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .next-btn, .start-btn, .export-btn {
+    display: block; margin: 18px auto 0; padding: 14px 36px;
+    background: linear-gradient(180deg, var(--felt-mid), var(--felt-deep));
+    color: var(--cream); border: 2px solid var(--brass-dark);
+    border-radius: 10px; font-family: 'Prata', Georgia, serif; font-weight: 700;
+    font-size: 16px; cursor: pointer; letter-spacing: 0.5px;
+  }
+  .next-btn:hover, .start-btn:hover, .export-btn:hover { filter: brightness(1.1); }
+
+  .summary-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+  .summary-table th, .summary-table td { padding: 6px 8px; border-bottom: 1px solid var(--cream-shadow); text-align: left; }
+  .summary-table th { color: #6b6255; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  .tag-match { color: #15803d; font-weight: 700; }
+  .tag-miss { color: #b91c1c; font-weight: 700; }
+
+  .footer-note { color: var(--text-muted); font-size: 11px; text-align: center; margin-top: 18px; max-width: 500px; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script id="position-data" type="application/json">
+{"meta":{"version":"1.0","champion_checkpoint":"C:\\Users\\bernd\\pernambuco-domino\\checkpoints\\domino_g00056.pt","n_items":28,"mine_sims":50,"label_sims":50,"label_root_particles":4,"strategy":"net-disagreement","notes":"Curated for live human-expert review session (review.html). label fields filled in by the browser tool's export."},"items":[{"id":"hr_000","source":"mined_disagreement","game_idx":0,"move_idx":0,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["0-3","2-3","0-6","5-6","1-3","3-6"],"my_hand_indices":[3,14,6,26,9,21],"played_tiles":["6-6"],"left_end":6,"right_end":6,"hand_sizes":[6,6,6,5],"board_length":1,"recent_actions":[{"actor_rel":"rho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false}]},"legal_actions":[{"action_idx":6,"tile_idx":6,"tile_str":"0-6","side":"left"},{"action_idx":21,"tile_idx":21,"tile_str":"3-6","side":"left"},{"action_idx":26,"tile_idx":26,"tile_str":"5-6","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":6,"tile_idx":6,"tile_str":"0-6","side":"left"},{"action_idx":21,"tile_idx":21,"tile_str":"3-6","side":"left"},{"action_idx":26,"tile_idx":26,"tile_str":"5-6","side":"left"}],"top_probs":[0.4957018792629242,0.4957018792629242,0.008596229366958141]}},"label":null},{"id":"hr_001","source":"mined_disagreement","game_idx":1,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["4-6","1-3","2-2","4-4","1-2","1-5"],"my_hand_indices":[24,9,13,22,8,11],"played_tiles":["5-6","6-6"],"left_end":5,"right_end":6,"hand_sizes":[6,5,6,5],"board_length":2,"recent_actions":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"},{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_002","source":"mined_disagreement","game_idx":2,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["0-5","0-4","1-3","3-5","0-0","0-2"],"my_hand_indices":[5,4,9,20,0,2],"played_tiles":["4-6","5-5","5-6"],"left_end":4,"right_end":5,"hand_sizes":[6,5,5,5],"board_length":3,"recent_actions":[{"actor_rel":"lho","tile_idx":25,"tile_str":"5-5","side":"none","is_pass":false},{"actor_rel":"partner","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":33,"tile_idx":5,"tile_str":"0-5","side":"right"},{"action_idx":48,"tile_idx":20,"tile_str":"3-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":33,"tile_idx":5,"tile_str":"0-5","side":"right"},{"action_idx":48,"tile_idx":20,"tile_str":"3-5","side":"right"}],"top_probs":[0.4957018792629242,0.4957018792629242,0.008596229366958141]}},"label":null},{"id":"hr_003","source":"mined_disagreement","game_idx":3,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["1-5","0-1","3-4","4-6","3-6","0-2"],"my_hand_indices":[11,1,19,24,21,2],"played_tiles":["5-6","6-6"],"left_end":5,"right_end":6,"hand_sizes":[6,6,5,5],"board_length":2,"recent_actions":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"top_probs":[0.9664795398712158,0.01676023378968239,0.01676023378968239]}},"label":null},{"id":"hr_004","source":"mined_disagreement","game_idx":4,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["1-1","3-5","5-5","1-6","0-1","0-2"],"my_hand_indices":[7,20,25,12,1,2],"played_tiles":["0-6","6-6"],"left_end":0,"right_end":6,"hand_sizes":[6,6,5,5],"board_length":2,"recent_actions":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"},{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"},{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"}],"top_probs":[0.4957018792629242,0.4957018792629242,0.008596229366958141]}},"label":null},{"id":"hr_005","source":"mined_disagreement","game_idx":5,"move_idx":4,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["0-4","0-1","0-6","3-3","4-6"],"my_hand_indices":[4,1,6,18,24],"played_tiles":["1-3","3-5","4-4","4-5","5-5"],"left_end":1,"right_end":4,"hand_sizes":[5,5,5,4],"board_length":5,"recent_actions":[{"actor_rel":"self","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":23,"tile_str":"4-5","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":22,"tile_str":"4-4","side":"right","is_pass":false},{"actor_rel":"rho","tile_idx":9,"tile_str":"1-3","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"},{"action_idx":32,"tile_idx":4,"tile_str":"0-4","side":"right"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"},{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"},{"action_idx":32,"tile_idx":4,"tile_str":"0-4","side":"right"}],"top_probs":[0.9664795398712158,0.01676023378968239,0.01676023378968239]}},"label":null},{"id":"hr_006","source":"mined_disagreement","game_idx":6,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["1-2","3-3","4-4","0-4","1-6","1-3"],"my_hand_indices":[8,18,22,4,12,9],"played_tiles":["3-4","3-6","6-6"],"left_end":4,"right_end":6,"hand_sizes":[6,5,5,5],"board_length":3,"recent_actions":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false},{"actor_rel":"partner","tile_idx":21,"tile_str":"3-6","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":19,"tile_str":"3-4","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":22,"tile_idx":22,"tile_str":"4-4","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":22,"tile_idx":22,"tile_str":"4-4","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"},{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"}],"top_probs":[0.49975597858428955,0.49975597858428955,0.00048804294783622026]}},"label":null},{"id":"hr_007","source":"mined_disagreement","game_idx":7,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["3-4","1-5","0-4","0-1","1-4","2-5"],"my_hand_indices":[19,11,4,1,10,16],"played_tiles":["5-5"],"left_end":5,"right_end":5,"hand_sizes":[6,6,5,6],"board_length":1,"recent_actions":[{"actor_rel":"partner","tile_idx":25,"tile_str":"5-5","side":"none","is_pass":false},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true}]},"legal_actions":[{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"}],"top_probs":[0.5,0.5]}},"label":null},{"id":"hr_008","source":"mined_disagreement","game_idx":8,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["3-4","4-6","2-4","3-3","5-5","2-5"],"my_hand_indices":[19,24,15,18,25,16],"played_tiles":["2-6","6-6"],"left_end":2,"right_end":6,"hand_sizes":[6,6,5,5],"board_length":2,"recent_actions":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false},{"actor_rel":"rho","tile_idx":17,"tile_str":"2-6","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":15,"tile_idx":15,"tile_str":"2-4","side":"left"},{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":15,"tile_idx":15,"tile_str":"2-4","side":"left"},{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"top_probs":[0.3333333432674408,0.3333333432674408,0.3333333432674408]}},"label":null},{"id":"hr_009","source":"mined_disagreement","game_idx":0,"move_idx":11,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["4-5","1-2","3-4"],"my_hand_indices":[23,8,19],"played_tiles":["0-0","0-1","0-2","0-5","0-6","1-3","1-4","2-6","3-3","4-6","5-6","6-6"],"left_end":1,"right_end":3,"hand_sizes":[3,3,3,3],"board_length":12,"recent_actions":[{"actor_rel":"self","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":9,"tile_str":"1-3","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":10,"tile_str":"1-4","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":18,"tile_str":"3-3","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":47,"tile_idx":19,"tile_str":"3-4","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":47,"tile_idx":19,"tile_str":"3-4","side":"right"},{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_010","source":"mined_disagreement","game_idx":1,"move_idx":9,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["5-5","0-4","4-5","0-2","0-0"],"my_hand_indices":[25,4,23,2,0],"played_tiles":["1-4","1-5","2-4","2-5","3-4","4-6","5-6","6-6"],"left_end":3,"right_end":5,"hand_sizes":[5,4,3,4],"board_length":8,"recent_actions":[{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"lho","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false},{"actor_rel":"rho","tile_idx":16,"tile_str":"2-5","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"},{"action_idx":53,"tile_idx":25,"tile_str":"5-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":53,"tile_idx":25,"tile_str":"5-5","side":"right"},{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_011","source":"mined_disagreement","game_idx":2,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["0-5","1-3","3-5","0-0","0-2"],"my_hand_indices":[5,9,20,0,2],"played_tiles":["0-4","0-6","2-3","3-6","4-6","5-5","5-6"],"left_end":2,"right_end":5,"hand_sizes":[5,4,4,4],"board_length":7,"recent_actions":[{"actor_rel":"self","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false},{"actor_rel":"partner","tile_idx":21,"tile_str":"3-6","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":33,"tile_idx":5,"tile_str":"0-5","side":"right"},{"action_idx":48,"tile_idx":20,"tile_str":"3-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":48,"tile_idx":20,"tile_str":"3-5","side":"right"},{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":33,"tile_idx":5,"tile_str":"0-5","side":"right"}],"top_probs":[0.9664795398712158,0.01676023378968239,0.01676023378968239]}},"label":null},{"id":"hr_012","source":"mined_disagreement","game_idx":3,"move_idx":8,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["1-4","1-2","2-2","0-0"],"my_hand_indices":[10,8,13,0],"played_tiles":["2-3","2-4","2-5","2-6","3-6","4-6","5-6","6-6"],"left_end":2,"right_end":2,"hand_sizes":[4,4,4,4],"board_length":8,"recent_actions":[{"actor_rel":"self","tile_idx":16,"tile_str":"2-5","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":21,"tile_str":"3-6","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":17,"tile_str":"2-6","side":"right","is_pass":false},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true}]},"legal_actions":[{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":13,"tile_idx":13,"tile_str":"2-2","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":13,"tile_idx":13,"tile_str":"2-2","side":"left"},{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_013","source":"mined_disagreement","game_idx":4,"move_idx":9,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["1-1","5-5","1-6","0-2"],"my_hand_indices":[7,25,12,2],"played_tiles":["0-1","0-6","1-3","1-5","3-4","3-5","4-6","6-6"],"left_end":1,"right_end":3,"hand_sizes":[4,5,4,3],"board_length":8,"recent_actions":[{"actor_rel":"self","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"rho","tile_idx":9,"tile_str":"1-3","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"}],"top_probs":[0.9829540848731995,0.01704592816531658]}},"label":null},{"id":"hr_014","source":"mined_disagreement","game_idx":6,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["1-2","3-3","4-4","1-6","1-3"],"my_hand_indices":[8,18,22,12,9],"played_tiles":["0-4","0-5","1-5","2-6","3-4","3-6","6-6"],"left_end":1,"right_end":2,"hand_sizes":[5,4,4,4],"board_length":7,"recent_actions":[{"actor_rel":"self","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":5,"tile_str":"0-5","side":"left","is_pass":false},{"actor_rel":"partner","tile_idx":11,"tile_str":"1-5","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":17,"tile_str":"2-6","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"}],"top_probs":[0.3332248628139496,0.3332248628139496,0.3332248628139496,0.00032541490509174764]}},"label":null},{"id":"hr_015","source":"mined_disagreement","game_idx":7,"move_idx":7,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["1-3","0-5","1-6","4-5"],"my_hand_indices":[9,5,12,23],"played_tiles":["0-4","0-6","2-3","2-5","4-4","5-5","5-6"],"left_end":3,"right_end":4,"hand_sizes":[4,5,4,4],"board_length":7,"recent_actions":[{"actor_rel":"self","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":6,"tile_str":"0-6","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":4,"tile_str":"0-4","side":"right","is_pass":false},{"actor_rel":"rho","tile_idx":22,"tile_str":"4-4","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_016","source":"mined_disagreement","game_idx":9,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["1-2","3-6","2-2","5-6","1-6"],"my_hand_indices":[8,21,13,26,12],"played_tiles":["0-4","0-6","2-4","3-4","4-6","6-6"],"left_end":3,"right_end":2,"hand_sizes":[5,4,5,4],"board_length":6,"recent_actions":[{"actor_rel":"self","tile_idx":6,"tile_str":"0-6","side":"right","is_pass":false},{"actor_rel":"lho","tile_idx":4,"tile_str":"0-4","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":19,"tile_str":"3-4","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":21,"tile_idx":21,"tile_str":"3-6","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":41,"tile_idx":13,"tile_str":"2-2","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":41,"tile_idx":13,"tile_str":"2-2","side":"right"},{"action_idx":21,"tile_idx":21,"tile_str":"3-6","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"}],"top_probs":[0.6188531517982483,0.19057343900203705,0.19057343900203705]}},"label":null},{"id":"hr_017","source":"mined_disagreement","game_idx":10,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["3-6","2-5","1-3","4-6","2-2"],"my_hand_indices":[21,16,9,24,13],"played_tiles":["2-3","3-3","3-4","3-5","4-5","5-5"],"left_end":2,"right_end":3,"hand_sizes":[5,4,5,4],"board_length":6,"recent_actions":[{"actor_rel":"self","tile_idx":18,"tile_str":"3-3","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":20,"tile_str":"3-5","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"rho","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":13,"tile_idx":13,"tile_str":"2-2","side":"left"},{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"},{"action_idx":37,"tile_idx":9,"tile_str":"1-3","side":"right"},{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":13,"tile_idx":13,"tile_str":"2-2","side":"left"},{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"},{"action_idx":37,"tile_idx":9,"tile_str":"1-3","side":"right"}],"top_probs":[0.6089485287666321,0.1303504854440689,0.1303504854440689,0.1303504854440689]}},"label":null},{"id":"hr_018","source":"mined_disagreement","game_idx":0,"move_idx":13,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["5-5","2-4","0-4"],"my_hand_indices":[25,15,4],"played_tiles":["0-0","0-1","0-2","0-3","0-5","0-6","1-2","1-3","1-4","2-6","3-3","4-6","5-6","6-6"],"left_end":2,"right_end":0,"hand_sizes":[3,3,2,2],"board_length":14,"recent_actions":[{"actor_rel":"self","tile_idx":10,"tile_str":"1-4","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":18,"tile_str":"3-3","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":8,"tile_str":"1-2","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":3,"tile_str":"0-3","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":15,"tile_idx":15,"tile_str":"2-4","side":"left"},{"action_idx":32,"tile_idx":4,"tile_str":"0-4","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":32,"tile_idx":4,"tile_str":"0-4","side":"right"},{"action_idx":15,"tile_idx":15,"tile_str":"2-4","side":"left"}],"top_probs":[0.9829540848731995,0.01704592816531658]}},"label":null},{"id":"hr_019","source":"mined_disagreement","game_idx":1,"move_idx":13,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["5-5","0-4","0-2","0-0"],"my_hand_indices":[25,4,2,0],"played_tiles":["1-4","1-5","2-3","2-4","2-5","3-3","3-4","4-4","4-5","4-6","5-6","6-6"],"left_end":2,"right_end":4,"hand_sizes":[4,3,2,3],"board_length":12,"recent_actions":[{"actor_rel":"self","tile_idx":23,"tile_str":"4-5","side":"right","is_pass":false},{"actor_rel":"lho","tile_idx":22,"tile_str":"4-4","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":18,"tile_str":"3-3","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":32,"tile_idx":4,"tile_str":"0-4","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":32,"tile_idx":4,"tile_str":"0-4","side":"right"}],"top_probs":[0.5,0.5]}},"label":null},{"id":"hr_020","source":"mined_disagreement","game_idx":2,"move_idx":13,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["2-4","4-5","1-1"],"my_hand_indices":[15,23,7],"played_tiles":["0-2","0-3","0-4","0-6","1-2","1-3","1-4","2-2","2-3","2-5","3-6","4-6","5-5","5-6"],"left_end":4,"right_end":1,"hand_sizes":[3,3,2,2],"board_length":14,"recent_actions":[{"actor_rel":"self","tile_idx":3,"tile_str":"0-3","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":9,"tile_str":"1-3","side":"left","is_pass":false},{"actor_rel":"partner","tile_idx":10,"tile_str":"1-4","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":8,"tile_str":"1-2","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":15,"tile_idx":15,"tile_str":"2-4","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"},{"action_idx":35,"tile_idx":7,"tile_str":"1-1","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":15,"tile_idx":15,"tile_str":"2-4","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"},{"action_idx":35,"tile_idx":7,"tile_str":"1-1","side":"right"}],"top_probs":[0.9664795398712158,0.01676023378968239,0.01676023378968239]}},"label":null},{"id":"hr_021","source":"mined_disagreement","game_idx":3,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["4-5","5-5","3-5"],"my_hand_indices":[23,25,20],"played_tiles":["0-1","0-2","0-5","1-2","2-2","2-3","2-4","2-5","2-6","3-6","4-6","5-6","6-6"],"left_end":5,"right_end":0,"hand_sizes":[3,4,2,2],"board_length":13,"recent_actions":[{"actor_rel":"self","tile_idx":5,"tile_str":"0-5","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"partner","tile_idx":13,"tile_str":"2-2","side":"right","is_pass":false},{"actor_rel":"rho","tile_idx":2,"tile_str":"0-2","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":20,"tile_idx":20,"tile_str":"3-5","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"},{"action_idx":25,"tile_idx":25,"tile_str":"5-5","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":20,"tile_idx":20,"tile_str":"3-5","side":"left"},{"action_idx":25,"tile_idx":25,"tile_str":"5-5","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"}],"top_probs":[0.4957018792629242,0.4957018792629242,0.008596229366958141]}},"label":null},{"id":"hr_022","source":"mined_disagreement","game_idx":5,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["0-5","2-3","2-4"],"my_hand_indices":[5,14,15],"played_tiles":["0-1","0-2","0-4","1-3","1-4","1-6","2-6","3-4","3-5","3-6","4-4","4-5","4-6","5-5"],"left_end":0,"right_end":4,"hand_sizes":[3,2,2,3],"board_length":14,"recent_actions":[{"actor_rel":"self","tile_idx":21,"tile_str":"3-6","side":"right","is_pass":false},{"actor_rel":"lho","tile_idx":19,"tile_str":"3-4","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true}]},"legal_actions":[{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"},{"action_idx":43,"tile_idx":15,"tile_str":"2-4","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"},{"action_idx":43,"tile_idx":15,"tile_str":"2-4","side":"right"}],"top_probs":[0.5,0.5]}},"label":null},{"id":"hr_023","source":"mined_disagreement","game_idx":6,"move_idx":17,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["4-6","1-4","0-6"],"my_hand_indices":[24,10,6],"played_tiles":["0-1","0-2","0-4","0-5","1-2","1-3","1-5","2-5","2-6","3-4","3-5","3-6","5-5","5-6","6-6"],"left_end":6,"right_end":5,"hand_sizes":[3,3,2,1],"board_length":15,"recent_actions":[{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"lho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":6,"tile_idx":6,"tile_str":"0-6","side":"left"},{"action_idx":24,"tile_idx":24,"tile_str":"4-6","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":6,"tile_idx":6,"tile_str":"0-6","side":"left"},{"action_idx":24,"tile_idx":24,"tile_str":"4-6","side":"left"}],"top_probs":[0.5,0.5]}},"label":null},{"id":"hr_024","source":"mined_disagreement","game_idx":7,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["0-2","1-1","1-2","0-0"],"my_hand_indices":[2,7,8,0],"played_tiles":["0-1","0-4","0-5","0-6","2-3","2-4","2-5","3-3","3-4","4-4","4-5","5-5","5-6"],"left_end":2,"right_end":1,"hand_sizes":[4,2,3,2],"board_length":13,"recent_actions":[{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"lho","tile_idx":5,"tile_str":"0-5","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":15,"tile_str":"2-4","side":"left","is_pass":false},{"actor_rel":"rho","tile_idx":1,"tile_str":"0-1","side":"right","is_pass":false}]},"legal_actions":[{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":35,"tile_idx":7,"tile_str":"1-1","side":"right"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":35,"tile_idx":7,"tile_str":"1-1","side":"right"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"}],"top_probs":[0.4995121955871582,0.4995121955871582,0.0004878048785030842,0.0004878048785030842]}},"label":null},{"id":"hr_025","source":"mined_disagreement","game_idx":8,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["0-3","1-1","0-0"],"my_hand_indices":[3,7,0],"played_tiles":["0-1","1-6","2-4","2-6","3-5","3-6","4-4","4-6","5-6","6-6"],"left_end":0,"right_end":6,"hand_sizes":[3,3,4,4],"board_length":10,"recent_actions":[{"actor_rel":"self","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false},{"actor_rel":"lho","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true}]},"legal_actions":[{"action_idx":0,"tile_idx":0,"tile_str":"0-0","side":"left"},{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"},{"action_idx":0,"tile_idx":0,"tile_str":"0-0","side":"left"}],"top_probs":[0.690065860748291,0.30993416905403137]}},"label":null},{"id":"hr_026","source":"mined_disagreement","game_idx":9,"move_idx":22,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["1-2","1-6"],"my_hand_indices":[8,12],"played_tiles":["0-2","0-3","0-4","0-5","0-6","1-3","2-2","2-3","2-4","2-5","3-3","3-4","3-5","3-6","4-6","5-6","6-6"],"left_end":0,"right_end":1,"hand_sizes":[2,2,1,2],"board_length":17,"recent_actions":[{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"lho","tile_idx":18,"tile_str":"3-3","side":"right","is_pass":false},{"actor_rel":"partner","tile_idx":9,"tile_str":"1-3","side":"right","is_pass":false},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true}]},"legal_actions":[{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_027","source":"mined_disagreement","game_idx":9,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["1-2","0-6","3-6","2-2","5-6","1-6"],"my_hand_indices":[8,6,21,13,26,12],"played_tiles":["4-6","6-6"],"left_end":4,"right_end":6,"hand_sizes":[6,5,6,5],"board_length":2,"recent_actions":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false}]},"legal_actions":[{"action_idx":34,"tile_idx":6,"tile_str":"0-6","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"},{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"},{"action_idx":34,"tile_idx":6,"tile_str":"0-6","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"top_probs":[0.4995121955871582,0.4995121955871582,0.0004878048785030842,0.0004878048785030842]}},"label":null}]}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  var DATA = JSON.parse(document.getElementById('position-data').textContent);
+  var ITEMS = DATA.items;
+  var SESSION_KEY = 'domino_review_' + (DATA.meta.champion_checkpoint || 'session').replace(/[^a-z0-9]/gi, '_');
+
+  var state = {
+    screen: 'start',       // start | position | summary
+    idx: 0,
+    pendingTile: null,     // tile_idx awaiting a side choice
+    answers: loadAnswers(),
+    startedAt: null,
+  };
+
+  function loadAnswers() {
+    try {
+      var raw = localStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveAnswers() {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(state.answers)); } catch (e) {}
+  }
+
+  function tileNums(tileStr) {
+    var parts = tileStr.split('-');
+    return [parseInt(parts[0], 10), parseInt(parts[1], 10)];
+  }
+
+  var DOT_PATTERNS = {
+    0: [], 1: [[1,1]],
+    2: [[0,0],[2,2]], 3: [[0,0],[1,1],[2,2]],
+    4: [[0,0],[0,2],[2,0],[2,2]], 5: [[0,0],[0,2],[1,1],[2,0],[2,2]],
+    6: [[0,0],[0,1],[0,2],[2,0],[2,1],[2,2]],
+  };
+
+  function renderDots(container, value) {
+    var pad = 8;
+    (DOT_PATTERNS[value] || []).forEach(function (pos) {
+      var d = document.createElement('div');
+      d.className = 'dot';
+      d.style.top = pos[0] === 0 ? pad + 'px' : pos[0] === 1 ? '50%' : 'calc(100% - ' + pad + 'px)';
+      d.style.left = pos[1] === 0 ? pad + 'px' : pos[1] === 1 ? '50%' : 'calc(100% - ' + pad + 'px)';
+      container.appendChild(d);
+    });
+  }
+
+  function makeDominoEl(a, b) {
+    var el = document.createElement('div');
+    el.className = 'domino';
+    var topHalf = document.createElement('div');
+    topHalf.className = 'domino-half';
+    renderDots(topHalf, a);
+    var divider = document.createElement('div');
+    divider.className = 'domino-divider';
+    var botHalf = document.createElement('div');
+    botHalf.className = 'domino-half';
+    renderDots(botHalf, b);
+    el.appendChild(topHalf);
+    el.appendChild(divider);
+    el.appendChild(botHalf);
+    return el;
+  }
+
+  function makeEndTile(value, label) {
+    var wrap = document.createElement('div');
+    wrap.style.position = 'relative';
+    var lab = document.createElement('div');
+    lab.className = 'end-label';
+    lab.textContent = label;
+    wrap.appendChild(lab);
+    var tile = document.createElement('div');
+    tile.className = 'end-tile';
+    renderDots(tile, value);
+    wrap.appendChild(tile);
+    return wrap;
+  }
+
+  function relLabel(rel) {
+    return { self: 'voce', lho: 'esquerda', partner: 'parceiro', rho: 'direita' }[rel] || rel;
+  }
+
+  function root() { return document.getElementById('root'); }
+  function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+  // ---------------------------------------------------------------- START
+
+  function renderStart() {
+    var r = root(); clear(r);
+    var topBar = document.createElement('div');
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.style.textAlign = 'center';
+
+    var h1 = document.createElement('h1');
+    h1.textContent = 'Revisao de Jogadas';
+    h1.style.marginBottom = '4px';
+    card.appendChild(h1);
+
+    var sub = document.createElement('div');
+    sub.className = 'muted';
+    sub.textContent = DATA.meta.n_items + ' posicoes reais de jogos do motor de IA.';
+    sub.style.marginBottom = '16px';
+    card.appendChild(sub);
+
+    var p = document.createElement('p');
+    p.style.fontSize = '14px';
+    p.style.lineHeight = '1.6';
+    p.textContent = 'Para cada posicao: sua mao e o tabuleiro aparecem. Toque na pedra que voce jogaria. ' +
+      'No final, veja quanto sua escolha coincidiu com a IA.';
+    card.appendChild(p);
+
+    var startBtn = document.createElement('button');
+    startBtn.className = 'start-btn';
+    startBtn.textContent = 'Comecar';
+    startBtn.onclick = function () {
+      state.screen = 'position';
+      state.startedAt = Date.now();
+      state.idx = firstUnanswered();
+      render();
+    };
+    card.appendChild(startBtn);
+
+    if (Object.keys(state.answers).length > 0) {
+      var resumeNote = document.createElement('div');
+      resumeNote.className = 'footer-note';
+      resumeNote.textContent = Object.keys(state.answers).length + ' resposta(s) salva(s) neste navegador. "Comecar" continua de onde parou.';
+      card.appendChild(resumeNote);
+
+      var resetBtn = document.createElement('button');
+      resetBtn.className = 'export-btn';
+      resetBtn.style.background = 'transparent';
+      resetBtn.style.color = 'var(--cream)';
+      resetBtn.style.border = '1px solid var(--text-muted)';
+      resetBtn.textContent = 'Apagar respostas salvas';
+      resetBtn.onclick = function () {
+        if (confirm('Apagar todas as respostas salvas?')) {
+          state.answers = {};
+          saveAnswers();
+          render();
+        }
+      };
+      card.appendChild(resetBtn);
+    }
+
+    r.appendChild(topBar);
+    r.appendChild(card);
+  }
+
+  function firstUnanswered() {
+    for (var i = 0; i < ITEMS.length; i++) {
+      if (!state.answers[ITEMS[i].id]) return i;
+    }
+    return 0;
+  }
+
+  // ------------------------------------------------------------- POSITION
+
+  function renderTopBar(currentIdx) {
+    var bar = document.createElement('div');
+    bar.className = 'top-bar';
+
+    var count = document.createElement('div');
+    count.style.fontSize = '13px';
+    count.style.fontWeight = '700';
+    count.textContent = (currentIdx + 1) + ' / ' + ITEMS.length;
+    bar.appendChild(count);
+
+    var track = document.createElement('div');
+    track.className = 'progress-track';
+    var fill = document.createElement('div');
+    fill.className = 'progress-fill';
+    fill.style.width = (100 * (currentIdx) / ITEMS.length) + '%';
+    track.appendChild(fill);
+    bar.appendChild(track);
+
+    var stage = ITEMS[currentIdx].stage;
+    var badge = document.createElement('div');
+    badge.className = 'stage-badge stage-' + stage;
+    badge.textContent = stage === 'early' ? 'abertura' : stage === 'mid' ? 'meio' : 'final';
+    bar.appendChild(badge);
+
+    return bar;
+  }
+
+  function actionLabel(action) {
+    if (action.side === 'pass') return 'passar';
+    return action.tile_str + (action.side === 'left' ? ' (esq)' : ' (dir)');
+  }
+
+  function renderPosition() {
+    var item = ITEMS[state.idx];
+    var r = root(); clear(r);
+    r.appendChild(renderTopBar(state.idx));
+
+    var card = document.createElement('div');
+    card.className = 'card';
+
+    // Board ends
+    var boardRow = document.createElement('div');
+    boardRow.className = 'board-row';
+    boardRow.appendChild(makeEndTile(item.public_state.left_end, 'esquerda'));
+    var arrow = document.createElement('div');
+    arrow.className = 'board-arrow';
+    arrow.textContent = '—'.repeat(3) + ' ' + item.public_state.board_length + ' pedras ' + '—'.repeat(3);
+    arrow.style.fontSize = '11px';
+    boardRow.appendChild(arrow);
+    boardRow.appendChild(makeEndTile(item.public_state.right_end, 'direita'));
+    card.appendChild(boardRow);
+
+    // Hand sizes
+    var infoRow = document.createElement('div');
+    infoRow.className = 'info-row';
+    var hs = item.public_state.hand_sizes;
+    var labels = ['voce: ' + hs[0], 'esquerda: ' + hs[1], 'parceiro: ' + hs[2], 'direita: ' + hs[3]];
+    labels.forEach(function (t) {
+      var pill = document.createElement('div');
+      pill.className = 'info-pill';
+      pill.textContent = t;
+      infoRow.appendChild(pill);
+    });
+    card.appendChild(infoRow);
+
+    // Recent history
+    if (item.public_state.recent_actions && item.public_state.recent_actions.length) {
+      var rec = document.createElement('div');
+      rec.className = 'recent-line';
+      var parts = item.public_state.recent_actions.map(function (a) {
+        var who = relLabel(a.actor_rel);
+        var what = a.is_pass ? 'passou' : a.tile_str + (a.side !== 'none' ? ' (' + (a.side === 'left' ? 'esq' : 'dir') + ')' : '');
+        return '<b>' + who + '</b>: ' + what;
+      });
+      rec.innerHTML = parts.join(' &rarr; ');
+      card.appendChild(rec);
+    }
+
+    // Hand
+    var handLabel = document.createElement('div');
+    handLabel.className = 'hand-label';
+    handLabel.textContent = 'Sua mao — toque na pedra que voce jogaria';
+    card.appendChild(handLabel);
+
+    var handRow = document.createElement('div');
+    handRow.className = 'hand-row';
+
+    var legalByTile = {}; // tile_idx -> [action, ...]
+    item.legal_actions.forEach(function (a) {
+      if (a.side === 'pass') return;
+      (legalByTile[a.tile_idx] = legalByTile[a.tile_idx] || []).push(a);
+    });
+
+    item.public_state.my_hand_indices.forEach(function (tileIdx, i) {
+      var nums = tileNums(item.public_state.my_hand_tiles[i]);
+      var el = makeDominoEl(nums[0], nums[1]);
+      var actions = legalByTile[tileIdx];
+      var isLegal = !!actions;
+      el.className += isLegal ? ' legal' : ' illegal';
+      if (isLegal) {
+        el.onclick = function () { onTileClick(tileIdx, actions); };
+      }
+      handRow.appendChild(el);
+    });
+    card.appendChild(handRow);
+
+    var canPass = item.legal_actions.some(function (a) { return a.side === 'pass'; });
+    if (canPass) {
+      var passBtn = document.createElement('button');
+      passBtn.className = 'side-btn';
+      passBtn.style.display = 'block';
+      passBtn.style.margin = '10px auto 0';
+      passBtn.textContent = 'Passar (nao ha jogada)';
+      passBtn.onclick = function () { recordAnswer(56); };
+      card.appendChild(passBtn);
+    }
+
+    var sidePromptHolder = document.createElement('div');
+    sidePromptHolder.id = 'side-prompt-holder';
+    card.appendChild(sidePromptHolder);
+
+    var existing = state.answers[item.id];
+    if (existing) {
+      card.appendChild(renderReveal(item, existing));
+    }
+
+    r.appendChild(card);
+
+    var footer = document.createElement('div');
+    footer.className = 'footer-note';
+    footer.textContent = 'Suas respostas ficam salvas neste navegador. Nada e enviado ao jogo ao vivo.';
+    r.appendChild(footer);
+  }
+
+  function onTileClick(tileIdx, actions) {
+    if (actions.length === 1) {
+      recordAnswer(actions[0].action_idx);
+      return;
+    }
+    // Two sides playable: prompt.
+    var holder = document.getElementById('side-prompt-holder');
+    clear(holder);
+    var prompt = document.createElement('div');
+    prompt.className = 'side-prompt';
+    var q = document.createElement('div');
+    q.style.fontSize = '13px';
+    q.style.marginBottom = '4px';
+    q.textContent = 'Jogar em qual lado?';
+    prompt.appendChild(q);
+    actions.forEach(function (a) {
+      var btn = document.createElement('button');
+      btn.className = 'side-btn';
+      btn.textContent = a.side === 'left' ? 'Esquerda' : 'Direita';
+      btn.onclick = function () { recordAnswer(a.action_idx); };
+      prompt.appendChild(btn);
+    });
+    holder.appendChild(prompt);
+  }
+
+  function recordAnswer(actionIdx) {
+    var item = ITEMS[state.idx];
+    var elapsed = state.startedAt ? (Date.now() - state.startedAt) : null;
+    state.answers[item.id] = {
+      human_action_idx: actionIdx,
+      elapsed_ms: elapsed,
+      answered_at: new Date().toISOString(),
+    };
+    state.startedAt = Date.now();
+    saveAnswers();
+    render();
+  }
+
+  function findAction(item, actionIdx) {
+    for (var i = 0; i < item.legal_actions.length; i++) {
+      if (item.legal_actions[i].action_idx === actionIdx) return item.legal_actions[i];
+    }
+    return null;
+  }
+
+  function renderReveal(item, answer) {
+    var box = document.createElement('div');
+    box.className = 'reveal-box';
+
+    var eng = item.engine_suggestions[Object.keys(item.engine_suggestions)[0]];
+    var humanAction = findAction(item, answer.human_action_idx);
+    var humanLabel = humanAction ? actionLabel(humanAction) : 'passar';
+
+    var rankIdx = eng.top_actions.findIndex(function (a) { return a.action_idx === answer.human_action_idx; });
+    var isTop1 = rankIdx === 0;
+
+    var verdict = document.createElement('div');
+    verdict.className = 'reveal-verdict ' + (isTop1 ? 'reveal-match' : 'reveal-miss');
+    verdict.textContent = isTop1 ? 'Igual a IA!' : (rankIdx >= 0 ? 'Diferente (rank #' + (rankIdx + 1) + ' na IA)' : 'Diferente (fora do top 4 da IA)');
+    box.appendChild(verdict);
+
+    var youLine = document.createElement('div');
+    youLine.style.textAlign = 'center';
+    youLine.style.fontSize = '13px';
+    youLine.style.marginBottom = '10px';
+    youLine.innerHTML = 'Voce jogou: <b>' + humanLabel + '</b>';
+    box.appendChild(youLine);
+
+    eng.top_actions.forEach(function (a, i) {
+      var row = document.createElement('div');
+      row.className = 'rank-row';
+      var isHuman = a.action_idx === answer.human_action_idx;
+      var label = document.createElement('div');
+      label.className = 'rank-label';
+      label.textContent = actionLabel(a);
+      row.appendChild(label);
+      var track = document.createElement('div');
+      track.className = 'rank-bar-track';
+      var fill = document.createElement('div');
+      fill.className = 'rank-bar-fill' + (isHuman ? ' is-human' : '');
+      fill.style.width = Math.max(2, eng.top_probs[i] * 100) + '%';
+      track.appendChild(fill);
+      row.appendChild(track);
+      var pct = document.createElement('div');
+      pct.className = 'rank-pct';
+      pct.textContent = (eng.top_probs[i] * 100).toFixed(0) + '%';
+      row.appendChild(pct);
+      box.appendChild(row);
+    });
+
+    var nextBtn = document.createElement('button');
+    nextBtn.className = 'next-btn';
+    nextBtn.textContent = (state.idx + 1 < ITEMS.length) ? 'Proxima posicao' : 'Ver resumo';
+    nextBtn.onclick = function () {
+      if (state.idx + 1 < ITEMS.length) {
+        state.idx += 1;
+      } else {
+        state.screen = 'summary';
+      }
+      render();
+    };
+    box.appendChild(nextBtn);
+
+    return box;
+  }
+
+  // -------------------------------------------------------------- SUMMARY
+
+  function renderSummary() {
+    var r = root(); clear(r);
+    var card = document.createElement('div');
+    card.className = 'card';
+
+    var h2 = document.createElement('h2');
+    h2.textContent = 'Resumo da Sessao';
+    h2.style.textAlign = 'center';
+    card.appendChild(h2);
+
+    var rows = ITEMS.map(function (item) {
+      var ans = state.answers[item.id];
+      if (!ans) return null;
+      var eng = item.engine_suggestions[Object.keys(item.engine_suggestions)[0]];
+      var rankIdx = eng.top_actions.findIndex(function (a) { return a.action_idx === ans.human_action_idx; });
+      var humanAction = findAction(item, ans.human_action_idx);
+      return {
+        id: item.id,
+        stage: item.stage,
+        human: humanAction ? actionLabel(humanAction) : 'passar',
+        model: actionLabel(eng.top_actions[0]) + ' (' + (eng.top_probs[0] * 100).toFixed(0) + '%)',
+        match: rankIdx === 0,
+      };
+    }).filter(Boolean);
+
+    var matches = rows.filter(function (x) { return x.match; }).length;
+    var pct = rows.length ? Math.round(100 * matches / rows.length) : 0;
+
+    var stat = document.createElement('div');
+    stat.style.textAlign = 'center';
+    stat.style.margin = '10px 0 16px';
+    stat.innerHTML = '<div style="font-size:36px;font-weight:700;font-family:Prata,Georgia,serif">' + pct + '%</div>' +
+      '<div class="muted">concordancia com o top-1 da IA (' + matches + '/' + rows.length + ')</div>';
+    card.appendChild(stat);
+
+    var table = document.createElement('table');
+    table.className = 'summary-table';
+    var thead = document.createElement('tr');
+    ['#', 'Fase', 'Voce', 'IA', ''].forEach(function (h) {
+      var th = document.createElement('th');
+      th.textContent = h;
+      thead.appendChild(th);
+    });
+    table.appendChild(thead);
+    rows.forEach(function (row, i) {
+      var tr = document.createElement('tr');
+      var cells = [i + 1, row.stage, row.human, row.model];
+      cells.forEach(function (c) {
+        var td = document.createElement('td');
+        td.textContent = c;
+        tr.appendChild(td);
+      });
+      var tagTd = document.createElement('td');
+      tagTd.className = row.match ? 'tag-match' : 'tag-miss';
+      tagTd.textContent = row.match ? 'igual' : 'diferente';
+      tr.appendChild(tagTd);
+      table.appendChild(tr);
+    });
+    card.appendChild(table);
+
+    var exportBtn = document.createElement('button');
+    exportBtn.className = 'export-btn';
+    exportBtn.textContent = 'Baixar resultados (JSON)';
+    exportBtn.onclick = exportResults;
+    card.appendChild(exportBtn);
+
+    var backBtn = document.createElement('button');
+    backBtn.className = 'export-btn';
+    backBtn.style.background = 'transparent';
+    backBtn.style.color = 'var(--cream)';
+    backBtn.style.border = '1px solid var(--text-muted)';
+    backBtn.textContent = 'Revisar posicoes novamente';
+    backBtn.onclick = function () { state.screen = 'start'; render(); };
+    card.appendChild(backBtn);
+
+    r.appendChild(card);
+  }
+
+  function exportResults() {
+    var out = {
+      exported_at: new Date().toISOString(),
+      champion_checkpoint: DATA.meta.champion_checkpoint,
+      items: ITEMS.map(function (item) {
+        var ans = state.answers[item.id];
+        if (!ans) return null;
+        var action = findAction(item, ans.human_action_idx);
+        var label = {
+          preferred_actions: [action ? (action.side === 'pass' ? 'pass' : action.tile_str + '_' + action.side) : 'pass'],
+          preferred_tiles: action && action.side !== 'pass' ? [action.tile_str] : [],
+          human_action_idx: ans.human_action_idx,
+          elapsed_ms: ans.elapsed_ms,
+          answered_at: ans.answered_at,
+        };
+        return Object.assign({}, item, { label: label });
+      }).filter(Boolean),
+    };
+    var blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'domino_human_review_results.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function render() {
+    if (state.screen === 'start') renderStart();
+    else if (state.screen === 'position') {
+      if (state.idx >= ITEMS.length) { state.screen = 'summary'; render(); return; }
+      renderPosition();
+    } else renderSummary();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
