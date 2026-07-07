@@ -7,6 +7,9 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="google" content="notranslate">
 <title>Revisao de Jogadas — Domino</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Prata&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -79,29 +82,17 @@
   .seat-rho     { color: #b91c1c; }
 
   .board-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #6b6255; margin: 10px 0 6px; text-align: center; }
-  .timeline-wrap {
-    display: flex; gap: 6px; overflow-x: auto; padding: 6px 4px 10px;
-    margin-bottom: 6px; scrollbar-width: thin;
+
+  .replay-caption { text-align: center; font-size: 12px; color: #6b6255; margin-bottom: 6px; min-height: 16px; }
+  .replay-controls { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .replay-btn {
+    padding: 8px 14px; border-radius: 8px; border: 2px solid var(--brass-dark);
+    background: linear-gradient(180deg, #fff 0%, #f0ece2 100%); color: var(--text-dark);
+    font-weight: 700; font-size: 14px; cursor: pointer;
   }
-  .timeline-item { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
-  .timeline-item .seat-caption { font-size: 9px; font-weight: 700; text-transform: uppercase; margin-bottom: 3px; white-space: nowrap; }
-  .domino-mini {
-    width: 26px; height: 50px;
-    background: linear-gradient(180deg, #fff 0%, #f5f1e8 100%);
-    border-width: 2.5px; border-style: solid;
-    border-radius: 5px;
-    display: flex; flex-direction: column;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-  }
-  .domino-mini .domino-divider { margin: 0 3px; }
-  .domino-mini .dot { width: 3.5px; height: 3.5px; }
-  .pass-chip {
-    width: 26px; height: 50px; border-width: 2.5px; border-style: dashed; border-radius: 5px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 9px; font-weight: 700; color: #6b6255; background: var(--cream-deep);
-    writing-mode: vertical-rl;
-  }
-  .pass-hint { font-size: 8px; color: #6b6255; margin-top: 2px; white-space: nowrap; }
+  .replay-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .replay-btn-end { background: var(--brass); border-color: var(--brass-dark); }
+  .replay-step-label { font-size: 12px; font-weight: 700; min-width: 76px; text-align: center; color: #6b6255; }
 
   .cant-have-box {
     background: var(--cream-deep); border: 1px solid var(--cream-shadow);
@@ -177,6 +168,293 @@
 {"meta":{"version":"1.0","champion_checkpoint":"C:\\Users\\bernd\\pernambuco-domino\\checkpoints\\domino_g00056.pt","n_items":28,"mine_sims":50,"label_sims":50,"label_root_particles":4,"strategy":"net-disagreement","notes":"Curated for live human-expert review session (review.html). label fields filled in by the browser tool's export."},"items":[{"id":"hr_000","source":"mined_disagreement","game_idx":0,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["4-6","2-3","1-4","4-4","1-6","0-6"],"my_hand_indices":[24,14,10,22,12,6],"played_tiles":["6-6"],"left_end":6,"right_end":6,"hand_sizes":[6,6,5,6],"board_length":1,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[6]}},"legal_actions":[{"action_idx":6,"tile_idx":6,"tile_str":"0-6","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"},{"action_idx":24,"tile_idx":24,"tile_str":"4-6","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":6,"tile_idx":6,"tile_str":"0-6","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"},{"action_idx":24,"tile_idx":24,"tile_str":"4-6","side":"left"}],"top_probs":[0.9664795398712158,0.01676023378968239,0.01676023378968239]}},"label":null},{"id":"hr_001","source":"mined_disagreement","game_idx":1,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["1-5","5-5","1-6","1-1","2-4","1-3"],"my_hand_indices":[11,25,12,7,15,9],"played_tiles":["0-1","0-6","6-6"],"left_end":1,"right_end":6,"hand_sizes":[6,5,5,5],"board_length":3,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"}],"top_probs":[0.9961089491844177,0.0009727626456879079,0.0009727626456879079,0.0009727626456879079]}},"label":null},{"id":"hr_002","source":"mined_disagreement","game_idx":2,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["5-5","0-1","5-6","1-6","2-2","1-3"],"my_hand_indices":[25,1,26,12,13,9],"played_tiles":["0-2","2-6","6-6"],"left_end":0,"right_end":6,"hand_sizes":[6,5,5,5],"board_length":3,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":17,"tile_str":"2-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":2,"tile_str":"0-2","side":"left","is_pass":false,"left_before":2,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"}],"top_probs":[0.3333333432674408,0.3333333432674408,0.3333333432674408]}},"label":null},{"id":"hr_003","source":"mined_disagreement","game_idx":3,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["2-6","4-5","1-6","0-1","4-4","3-4"],"my_hand_indices":[17,23,12,1,22,19],"played_tiles":["4-6","5-6","6-6"],"left_end":4,"right_end":5,"hand_sizes":[6,5,5,5],"board_length":3,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"right","is_pass":false,"left_before":4,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":19,"tile_idx":19,"tile_str":"3-4","side":"left"},{"action_idx":22,"tile_idx":22,"tile_str":"4-4","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"},{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":19,"tile_idx":19,"tile_str":"3-4","side":"left"},{"action_idx":22,"tile_idx":22,"tile_str":"4-4","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"},{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"}],"top_probs":[0.3332248628139496,0.3332248628139496,0.3332248628139496,0.00032541490509174764]}},"label":null},{"id":"hr_004","source":"mined_disagreement","game_idx":4,"move_idx":4,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["4-4","4-5","0-3","0-4","3-3","0-5"],"my_hand_indices":[22,23,3,4,18,5],"played_tiles":["1-1","1-4","1-6","6-6"],"left_end":4,"right_end":6,"hand_sizes":[6,5,5,4],"board_length":4,"history":[{"actor_rel":"rho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"lho","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"partner","tile_idx":7,"tile_str":"1-1","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"rho","tile_idx":10,"tile_str":"1-4","side":"left","is_pass":false,"left_before":1,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":22,"tile_idx":22,"tile_str":"4-4","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":22,"tile_idx":22,"tile_str":"4-4","side":"left"},{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":23,"tile_idx":23,"tile_str":"4-5","side":"left"}],"top_probs":[0.6188531517982483,0.19057343900203705,0.19057343900203705]}},"label":null},{"id":"hr_005","source":"mined_disagreement","game_idx":5,"move_idx":3,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["0-0","1-3","2-4","1-1","4-5"],"my_hand_indices":[0,9,15,7,23],"played_tiles":["0-1","0-6","4-6","6-6"],"left_end":1,"right_end":4,"hand_sizes":[5,5,5,5],"board_length":4,"history":[{"actor_rel":"self","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"lho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"partner","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"rho","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":4}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":43,"tile_idx":15,"tile_str":"2-4","side":"right"},{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":9,"tile_idx":9,"tile_str":"1-3","side":"left"},{"action_idx":43,"tile_idx":15,"tile_str":"2-4","side":"right"},{"action_idx":51,"tile_idx":23,"tile_str":"4-5","side":"right"}],"top_probs":[0.9970788955688477,0.0009737098589539528,0.0009737098589539528,0.0009737098589539528]}},"label":null},{"id":"hr_006","source":"mined_disagreement","game_idx":6,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["1-6","0-3","3-5","3-6","4-6","4-5"],"my_hand_indices":[12,3,20,21,24,23],"played_tiles":["0-6","6-6"],"left_end":0,"right_end":6,"hand_sizes":[6,6,5,5],"board_length":2,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"},{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"},{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"top_probs":[0.25,0.25,0.25,0.25]}},"label":null},{"id":"hr_007","source":"mined_disagreement","game_idx":7,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["3-5","0-2","1-5","0-5","2-6","0-3"],"my_hand_indices":[20,2,11,5,17,3],"played_tiles":["0-6","6-6"],"left_end":0,"right_end":6,"hand_sizes":[6,6,5,5],"board_length":2,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"},{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"},{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"}],"top_probs":[0.25,0.25,0.25,0.25]}},"label":null},{"id":"hr_008","source":"mined_disagreement","game_idx":8,"move_idx":2,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["5-5","0-4","2-6","4-6","5-6","1-1"],"my_hand_indices":[25,4,17,24,26,7],"played_tiles":["1-6","6-6"],"left_end":1,"right_end":6,"hand_sizes":[6,5,6,5],"board_length":2,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":6,"right_before":6}],"cant_have":{"lho":[],"partner":[6],"rho":[]}},"legal_actions":[{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"},{"action_idx":7,"tile_idx":7,"tile_str":"1-1","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"}],"top_probs":[0.4995121955871582,0.4995121955871582,0.0004878048785030842,0.0004878048785030842]}},"label":null},{"id":"hr_009","source":"mined_disagreement","game_idx":0,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["3-3","3-4","2-6","0-4","5-5"],"my_hand_indices":[18,19,17,4,25],"played_tiles":["1-3","1-6","3-6","4-6","6-6"],"left_end":4,"right_end":6,"hand_sizes":[5,4,6,4],"board_length":5,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":9,"tile_str":"1-3","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"lho","tile_idx":21,"tile_str":"3-6","side":"left","is_pass":false,"left_before":3,"right_before":6},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false,"left_before":6,"right_before":6}],"cant_have":{"lho":[],"partner":[6],"rho":[]}},"legal_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":19,"tile_idx":19,"tile_str":"3-4","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"},{"action_idx":19,"tile_idx":19,"tile_str":"3-4","side":"left"}],"top_probs":[0.4957018792629242,0.4957018792629242,0.008596229366958141]}},"label":null},{"id":"hr_010","source":"mined_disagreement","game_idx":1,"move_idx":9,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["2-2","2-6","1-4","0-4"],"my_hand_indices":[13,17,10,4],"played_tiles":["0-1","0-3","0-6","1-2","1-5","2-4","3-5","4-6","6-6"],"left_end":0,"right_end":1,"hand_sizes":[4,4,4,3],"board_length":9,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"lho","tile_idx":11,"tile_str":"1-5","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"partner","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"rho","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false,"left_before":5,"right_before":4},{"actor_rel":"self","tile_idx":3,"tile_str":"0-3","side":"left","is_pass":false,"left_before":3,"right_before":4},{"actor_rel":"lho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":0,"right_before":2},{"actor_rel":"rho","tile_idx":8,"tile_str":"1-2","side":"right","is_pass":false,"left_before":0,"right_before":2}],"cant_have":{"lho":[],"partner":[0,2],"rho":[]}},"legal_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":38,"tile_idx":10,"tile_str":"1-4","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":4,"tile_idx":4,"tile_str":"0-4","side":"left"},{"action_idx":38,"tile_idx":10,"tile_str":"1-4","side":"right"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_011","source":"mined_disagreement","game_idx":2,"move_idx":7,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["1-5","0-5","3-3","4-4"],"my_hand_indices":[11,5,18,22],"played_tiles":["0-1","0-2","1-2","2-3","2-6","3-6","5-6","6-6"],"left_end":5,"right_end":6,"hand_sizes":[4,4,4,4],"board_length":8,"history":[{"actor_rel":"self","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"lho","tile_idx":17,"tile_str":"2-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"partner","tile_idx":2,"tile_str":"0-2","side":"left","is_pass":false,"left_before":2,"right_before":6},{"actor_rel":"rho","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"self","tile_idx":8,"tile_str":"1-2","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"lho","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false,"left_before":2,"right_before":6},{"actor_rel":"partner","tile_idx":21,"tile_str":"3-6","side":"left","is_pass":false,"left_before":3,"right_before":6},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false,"left_before":6,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"},{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"},{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"}],"top_probs":[0.5,0.5]}},"label":null},{"id":"hr_012","source":"mined_disagreement","game_idx":3,"move_idx":7,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["3-6","0-3","2-3","0-5","3-3"],"my_hand_indices":[21,3,14,5,18],"played_tiles":["0-4","2-4","2-6","4-5","4-6","5-6","6-6"],"left_end":0,"right_end":6,"hand_sizes":[5,4,4,4],"board_length":7,"history":[{"actor_rel":"self","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"lho","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"partner","tile_idx":26,"tile_str":"5-6","side":"right","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"rho","tile_idx":23,"tile_str":"4-5","side":"right","is_pass":false,"left_before":4,"right_before":5},{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":4,"right_before":4},{"actor_rel":"lho","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false,"left_before":4,"right_before":4},{"actor_rel":"partner","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"rho","tile_idx":17,"tile_str":"2-6","side":"right","is_pass":false,"left_before":0,"right_before":2}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"},{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"},{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":3,"tile_idx":3,"tile_str":"0-3","side":"left"},{"action_idx":5,"tile_idx":5,"tile_str":"0-5","side":"left"}],"top_probs":[0.9664795398712158,0.01676023378968239,0.01676023378968239]}},"label":null},{"id":"hr_013","source":"mined_disagreement","game_idx":4,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["2-5","3-4","0-1","5-6","2-4"],"my_hand_indices":[16,19,1,26,15],"played_tiles":["1-1","1-4","1-6","3-5","4-5","6-6"],"left_end":3,"right_end":6,"hand_sizes":[5,4,5,4],"board_length":6,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":7,"tile_str":"1-1","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"lho","tile_idx":10,"tile_str":"1-4","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"partner","tile_idx":23,"tile_str":"4-5","side":"left","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"rho","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false,"left_before":5,"right_before":6}],"cant_have":{"lho":[],"partner":[6],"rho":[]}},"legal_actions":[{"action_idx":19,"tile_idx":19,"tile_str":"3-4","side":"left"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"},{"action_idx":19,"tile_idx":19,"tile_str":"3-4","side":"left"}],"top_probs":[0.9829540848731995,0.01704592816531658]}},"label":null},{"id":"hr_014","source":"mined_disagreement","game_idx":5,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["1-6","3-3","5-6","1-2","2-6"],"my_hand_indices":[12,18,26,8,17],"played_tiles":["0-1","0-6","1-5","2-2","2-4","4-6","6-6"],"left_end":5,"right_end":2,"hand_sizes":[5,4,4,4],"board_length":7,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"self","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"lho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":1,"right_before":4},{"actor_rel":"partner","tile_idx":13,"tile_str":"2-2","side":"right","is_pass":false,"left_before":1,"right_before":2},{"actor_rel":"rho","tile_idx":11,"tile_str":"1-5","side":"left","is_pass":false,"left_before":1,"right_before":2}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":26,"tile_idx":26,"tile_str":"5-6","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"},{"action_idx":26,"tile_idx":26,"tile_str":"5-6","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"}],"top_probs":[0.9664795398712158,0.01676023378968239,0.01676023378968239]}},"label":null},{"id":"hr_015","source":"mined_disagreement","game_idx":6,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["5-6","2-3","2-2","2-5","3-3"],"my_hand_indices":[26,14,13,16,18],"played_tiles":["0-1","0-6","1-6","2-4","4-4","4-6","6-6"],"left_end":6,"right_end":2,"hand_sizes":[5,4,4,4],"board_length":7,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"self","tile_idx":22,"tile_str":"4-4","side":"right","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"lho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"partner","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":2},{"actor_rel":"rho","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":1,"right_before":2}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":26,"tile_idx":26,"tile_str":"5-6","side":"left"},{"action_idx":41,"tile_idx":13,"tile_str":"2-2","side":"right"},{"action_idx":42,"tile_idx":14,"tile_str":"2-3","side":"right"},{"action_idx":44,"tile_idx":16,"tile_str":"2-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":26,"tile_idx":26,"tile_str":"5-6","side":"left"},{"action_idx":41,"tile_idx":13,"tile_str":"2-2","side":"right"},{"action_idx":42,"tile_idx":14,"tile_str":"2-3","side":"right"},{"action_idx":44,"tile_idx":16,"tile_str":"2-5","side":"right"}],"top_probs":[0.4995121955871582,0.4995121955871582,0.0004878048785030842,0.0004878048785030842]}},"label":null},{"id":"hr_016","source":"mined_disagreement","game_idx":7,"move_idx":6,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["0-4","1-2","1-6","3-4","4-5"],"my_hand_indices":[4,8,12,19,23],"played_tiles":["0-5","0-6","1-4","2-6","4-6","5-6","6-6"],"left_end":2,"right_end":1,"hand_sizes":[5,4,4,4],"board_length":7,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":5,"tile_str":"0-5","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"self","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"lho","tile_idx":10,"tile_str":"1-4","side":"right","is_pass":false,"left_before":5,"right_before":4},{"actor_rel":"partner","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false,"left_before":5,"right_before":1},{"actor_rel":"rho","tile_idx":17,"tile_str":"2-6","side":"left","is_pass":false,"left_before":6,"right_before":1}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"top_probs":[0.3333333432674408,0.3333333432674408,0.3333333432674408]}},"label":null},{"id":"hr_017","source":"mined_disagreement","game_idx":8,"move_idx":9,"stage":"mid","public_state":{"current_player_rel":"self","my_hand_tiles":["0-2","0-3","2-2","2-3"],"my_hand_indices":[2,3,13,14],"played_tiles":["0-1","1-2","1-3","1-6","2-5","3-5","5-5","5-6","6-6"],"left_end":5,"right_end":0,"hand_sizes":[4,4,3,4],"board_length":9,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"lho","tile_idx":26,"tile_str":"5-6","side":"right","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"partner","tile_idx":16,"tile_str":"2-5","side":"right","is_pass":false,"left_before":1,"right_before":5},{"actor_rel":"rho","tile_idx":9,"tile_str":"1-3","side":"left","is_pass":false,"left_before":1,"right_before":2},{"actor_rel":"self","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false,"left_before":3,"right_before":2},{"actor_rel":"lho","tile_idx":25,"tile_str":"5-5","side":"left","is_pass":false,"left_before":5,"right_before":2},{"actor_rel":"partner","tile_idx":8,"tile_str":"1-2","side":"right","is_pass":false,"left_before":5,"right_before":2},{"actor_rel":"rho","tile_idx":1,"tile_str":"0-1","side":"right","is_pass":false,"left_before":5,"right_before":1}],"cant_have":{"lho":[],"partner":[],"rho":[6]}},"legal_actions":[{"action_idx":30,"tile_idx":2,"tile_str":"0-2","side":"right"},{"action_idx":31,"tile_idx":3,"tile_str":"0-3","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":30,"tile_idx":2,"tile_str":"0-2","side":"right"},{"action_idx":31,"tile_idx":3,"tile_str":"0-3","side":"right"}],"top_probs":[0.9829540848731995,0.01704592816531658]}},"label":null},{"id":"hr_018","source":"mined_disagreement","game_idx":1,"move_idx":15,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["3-4","4-4","3-6"],"my_hand_indices":[19,22,21],"played_tiles":["0-1","0-3","0-4","0-6","1-2","1-3","1-5","2-4","3-3","3-5","4-5","4-6","5-5","6-6"],"left_end":5,"right_end":3,"hand_sizes":[3,2,3,2],"board_length":14,"history":[{"actor_rel":"self","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"lho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"partner","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"rho","tile_idx":11,"tile_str":"1-5","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"self","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"lho","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false,"left_before":5,"right_before":4},{"actor_rel":"partner","tile_idx":3,"tile_str":"0-3","side":"left","is_pass":false,"left_before":3,"right_before":4},{"actor_rel":"rho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":0,"right_before":2},{"actor_rel":"lho","tile_idx":8,"tile_str":"1-2","side":"right","is_pass":false,"left_before":0,"right_before":2},{"actor_rel":"partner","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false,"left_before":0,"right_before":1},{"actor_rel":"rho","tile_idx":9,"tile_str":"1-3","side":"right","is_pass":false,"left_before":4,"right_before":1},{"actor_rel":"self","tile_idx":18,"tile_str":"3-3","side":"right","is_pass":false,"left_before":4,"right_before":3},{"actor_rel":"lho","tile_idx":23,"tile_str":"4-5","side":"left","is_pass":false,"left_before":4,"right_before":3},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":5,"right_before":3},{"actor_rel":"rho","tile_idx":25,"tile_str":"5-5","side":"left","is_pass":false,"left_before":5,"right_before":3}],"cant_have":{"lho":[],"partner":[3,5],"rho":[]}},"legal_actions":[{"action_idx":47,"tile_idx":19,"tile_str":"3-4","side":"right"},{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":49,"tile_idx":21,"tile_str":"3-6","side":"right"},{"action_idx":47,"tile_idx":19,"tile_str":"3-4","side":"right"}],"top_probs":[0.9829540848731995,0.01704592816531658]}},"label":null},{"id":"hr_019","source":"mined_disagreement","game_idx":2,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["5-5","1-6","2-2","1-3"],"my_hand_indices":[25,12,13,9],"played_tiles":["0-1","0-2","0-3","0-4","0-5","0-6","1-2","2-3","2-6","3-6","4-4","4-6","5-6","6-6"],"left_end":6,"right_end":3,"hand_sizes":[4,2,2,2],"board_length":14,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":17,"tile_str":"2-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":2,"tile_str":"0-2","side":"left","is_pass":false,"left_before":2,"right_before":6},{"actor_rel":"self","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"lho","tile_idx":8,"tile_str":"1-2","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"partner","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false,"left_before":2,"right_before":6},{"actor_rel":"rho","tile_idx":21,"tile_str":"3-6","side":"left","is_pass":false,"left_before":3,"right_before":6},{"actor_rel":"self","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"lho","tile_idx":5,"tile_str":"0-5","side":"left","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"partner","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"right","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":4,"right_before":0},{"actor_rel":"lho","tile_idx":22,"tile_str":"4-4","side":"left","is_pass":false,"left_before":4,"right_before":0},{"actor_rel":"partner","tile_idx":3,"tile_str":"0-3","side":"right","is_pass":false,"left_before":4,"right_before":0},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false,"left_before":4,"right_before":3}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"},{"action_idx":37,"tile_idx":9,"tile_str":"1-3","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":12,"tile_idx":12,"tile_str":"1-6","side":"left"},{"action_idx":37,"tile_idx":9,"tile_str":"1-3","side":"right"}],"top_probs":[0.5,0.5]}},"label":null},{"id":"hr_020","source":"mined_disagreement","game_idx":4,"move_idx":13,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["3-6","1-2","4-6"],"my_hand_indices":[21,8,24],"played_tiles":["0-2","0-4","1-1","1-4","1-6","2-4","2-6","3-4","3-5","4-4","4-5","6-6"],"left_end":2,"right_end":4,"hand_sizes":[3,3,3,3],"board_length":12,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"lho","tile_idx":7,"tile_str":"1-1","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"partner","tile_idx":10,"tile_str":"1-4","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"rho","tile_idx":23,"tile_str":"4-5","side":"left","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"self","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"lho","tile_idx":19,"tile_str":"3-4","side":"left","is_pass":false,"left_before":3,"right_before":6},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":4,"right_before":6},{"actor_rel":"rho","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"self","tile_idx":17,"tile_str":"2-6","side":"right","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"lho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":0,"right_before":2},{"actor_rel":"partner","tile_idx":2,"tile_str":"0-2","side":"left","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"rho","tile_idx":22,"tile_str":"4-4","side":"right","is_pass":false,"left_before":2,"right_before":4}],"cant_have":{"lho":[],"partner":[4,6],"rho":[6]}},"legal_actions":[{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":52,"tile_idx":24,"tile_str":"4-6","side":"right"},{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_021","source":"mined_disagreement","game_idx":5,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["1-6","5-6","1-2"],"my_hand_indices":[12,26,8],"played_tiles":["0-1","0-4","0-6","1-3","1-5","2-2","2-4","2-6","3-3","3-6","4-4","4-5","4-6","6-6"],"left_end":0,"right_end":1,"hand_sizes":[3,2,2,3],"board_length":14,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"self","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"lho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":1,"right_before":4},{"actor_rel":"partner","tile_idx":13,"tile_str":"2-2","side":"right","is_pass":false,"left_before":1,"right_before":2},{"actor_rel":"rho","tile_idx":11,"tile_str":"1-5","side":"left","is_pass":false,"left_before":1,"right_before":2},{"actor_rel":"self","tile_idx":17,"tile_str":"2-6","side":"right","is_pass":false,"left_before":5,"right_before":2},{"actor_rel":"lho","tile_idx":23,"tile_str":"4-5","side":"left","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"partner","tile_idx":22,"tile_str":"4-4","side":"left","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"rho","tile_idx":21,"tile_str":"3-6","side":"right","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"self","tile_idx":18,"tile_str":"3-3","side":"right","is_pass":false,"left_before":4,"right_before":3},{"actor_rel":"lho","tile_idx":9,"tile_str":"1-3","side":"right","is_pass":false,"left_before":4,"right_before":3},{"actor_rel":"partner","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false,"left_before":4,"right_before":1},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":0,"right_before":1}],"cant_have":{"lho":[],"partner":[],"rho":[0,1]}},"legal_actions":[{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":40,"tile_idx":12,"tile_str":"1-6","side":"right"}],"top_probs":[0.9829540848731995,0.01704592816531658]}},"label":null},{"id":"hr_022","source":"mined_disagreement","game_idx":6,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["2-3","2-2","3-3"],"my_hand_indices":[14,13,18],"played_tiles":["0-0","0-1","0-2","0-3","0-6","1-6","2-4","2-5","2-6","3-4","3-6","4-4","4-6","5-6","6-6"],"left_end":3,"right_end":4,"hand_sizes":[3,2,2,2],"board_length":15,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"self","tile_idx":22,"tile_str":"4-4","side":"right","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"lho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"partner","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":2},{"actor_rel":"rho","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":1,"right_before":2},{"actor_rel":"self","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false,"left_before":6,"right_before":2},{"actor_rel":"lho","tile_idx":2,"tile_str":"0-2","side":"right","is_pass":false,"left_before":5,"right_before":2},{"actor_rel":"partner","tile_idx":0,"tile_str":"0-0","side":"right","is_pass":false,"left_before":5,"right_before":0},{"actor_rel":"rho","tile_idx":3,"tile_str":"0-3","side":"right","is_pass":false,"left_before":5,"right_before":0},{"actor_rel":"self","tile_idx":16,"tile_str":"2-5","side":"left","is_pass":false,"left_before":5,"right_before":3},{"actor_rel":"lho","tile_idx":19,"tile_str":"3-4","side":"right","is_pass":false,"left_before":2,"right_before":3},{"actor_rel":"partner","tile_idx":17,"tile_str":"2-6","side":"left","is_pass":false,"left_before":2,"right_before":4},{"actor_rel":"rho","tile_idx":21,"tile_str":"3-6","side":"left","is_pass":false,"left_before":6,"right_before":4}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":14,"tile_idx":14,"tile_str":"2-3","side":"left"},{"action_idx":18,"tile_idx":18,"tile_str":"3-3","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":14,"tile_idx":14,"tile_str":"2-3","side":"left"},{"action_idx":18,"tile_idx":18,"tile_str":"3-3","side":"left"}],"top_probs":[0.5,0.5]}},"label":null},{"id":"hr_023","source":"mined_disagreement","game_idx":7,"move_idx":13,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["3-5","1-5","0-3"],"my_hand_indices":[20,11,3],"played_tiles":["0-2","0-4","0-5","0-6","1-2","1-4","2-2","2-5","2-6","4-6","5-5","5-6","6-6"],"left_end":5,"right_end":4,"hand_sizes":[3,3,3,2],"board_length":13,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":5,"tile_str":"0-5","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"lho","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"partner","tile_idx":10,"tile_str":"1-4","side":"right","is_pass":false,"left_before":5,"right_before":4},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false,"left_before":5,"right_before":1},{"actor_rel":"self","tile_idx":17,"tile_str":"2-6","side":"left","is_pass":false,"left_before":6,"right_before":1},{"actor_rel":"lho","tile_idx":8,"tile_str":"1-2","side":"right","is_pass":false,"left_before":2,"right_before":1},{"actor_rel":"partner","tile_idx":13,"tile_str":"2-2","side":"left","is_pass":false,"left_before":2,"right_before":2},{"actor_rel":"rho","tile_idx":16,"tile_str":"2-5","side":"left","is_pass":false,"left_before":2,"right_before":2},{"actor_rel":"self","tile_idx":2,"tile_str":"0-2","side":"right","is_pass":false,"left_before":5,"right_before":2},{"actor_rel":"lho","tile_idx":4,"tile_str":"0-4","side":"right","is_pass":false,"left_before":5,"right_before":0},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":5,"right_before":4},{"actor_rel":"rho","tile_idx":25,"tile_str":"5-5","side":"left","is_pass":false,"left_before":5,"right_before":4}],"cant_have":{"lho":[],"partner":[4,5],"rho":[]}},"legal_actions":[{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":20,"tile_idx":20,"tile_str":"3-5","side":"left"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":20,"tile_idx":20,"tile_str":"3-5","side":"left"}],"top_probs":[0.9466886520385742,0.053311362862586975]}},"label":null},{"id":"hr_024","source":"mined_disagreement","game_idx":11,"move_idx":13,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["5-5","3-5","2-5"],"my_hand_indices":[25,20,16],"played_tiles":["0-2","0-6","1-1","1-5","1-6","2-2","2-3","2-4","3-4","4-5","4-6","5-6","6-6"],"left_end":2,"right_end":5,"hand_sizes":[3,3,2,3],"board_length":13,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":23,"tile_str":"4-5","side":"left","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"lho","tile_idx":12,"tile_str":"1-6","side":"right","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"partner","tile_idx":15,"tile_str":"2-4","side":"left","is_pass":false,"left_before":4,"right_before":1},{"actor_rel":"rho","tile_idx":13,"tile_str":"2-2","side":"left","is_pass":false,"left_before":2,"right_before":1},{"actor_rel":"self","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false,"left_before":2,"right_before":1},{"actor_rel":"lho","tile_idx":19,"tile_str":"3-4","side":"left","is_pass":false,"left_before":3,"right_before":1},{"actor_rel":"partner","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false,"left_before":4,"right_before":1},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":1},{"actor_rel":"self","tile_idx":2,"tile_str":"0-2","side":"left","is_pass":false,"left_before":0,"right_before":1},{"actor_rel":"lho","tile_idx":7,"tile_str":"1-1","side":"right","is_pass":false,"left_before":2,"right_before":1},{"actor_rel":"partner","tile_idx":11,"tile_str":"1-5","side":"right","is_pass":false,"left_before":2,"right_before":1},{"actor_rel":"rho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":2,"right_before":5}],"cant_have":{"lho":[],"partner":[],"rho":[2,5]}},"legal_actions":[{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"},{"action_idx":44,"tile_idx":16,"tile_str":"2-5","side":"right"},{"action_idx":48,"tile_idx":20,"tile_str":"3-5","side":"right"},{"action_idx":53,"tile_idx":25,"tile_str":"5-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":16,"tile_idx":16,"tile_str":"2-5","side":"left"},{"action_idx":44,"tile_idx":16,"tile_str":"2-5","side":"right"},{"action_idx":53,"tile_idx":25,"tile_str":"5-5","side":"right"},{"action_idx":48,"tile_idx":20,"tile_str":"3-5","side":"right"}],"top_probs":[0.3332248628139496,0.3332248628139496,0.3332248628139496,0.00032541490509174764]}},"label":null},{"id":"hr_025","source":"mined_disagreement","game_idx":15,"move_idx":19,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["1-2","2-6","2-5"],"my_hand_indices":[8,17,16],"played_tiles":["0-1","0-2","0-3","0-6","1-1","1-3","1-4","1-5","1-6","2-2","2-3","2-4","3-4","3-5","3-6","4-6","6-6"],"left_end":1,"right_end":2,"hand_sizes":[3,1,2,1],"board_length":17,"history":[{"actor_rel":"self","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"lho","tile_idx":21,"tile_str":"3-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"partner","tile_idx":3,"tile_str":"0-3","side":"left","is_pass":false,"left_before":3,"right_before":6},{"actor_rel":"rho","tile_idx":24,"tile_str":"4-6","side":"right","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"self","tile_idx":2,"tile_str":"0-2","side":"left","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"lho","tile_idx":13,"tile_str":"2-2","side":"left","is_pass":false,"left_before":2,"right_before":4},{"actor_rel":"partner","tile_idx":14,"tile_str":"2-3","side":"left","is_pass":false,"left_before":2,"right_before":4},{"actor_rel":"rho","tile_idx":19,"tile_str":"3-4","side":"right","is_pass":false,"left_before":3,"right_before":4},{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":3,"right_before":3},{"actor_rel":"lho","tile_idx":9,"tile_str":"1-3","side":"left","is_pass":false,"left_before":3,"right_before":3},{"actor_rel":"partner","tile_idx":7,"tile_str":"1-1","side":"left","is_pass":false,"left_before":1,"right_before":3},{"actor_rel":"rho","tile_idx":20,"tile_str":"3-5","side":"right","is_pass":false,"left_before":1,"right_before":3},{"actor_rel":"self","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":1,"right_before":5},{"actor_rel":"lho","tile_idx":11,"tile_str":"1-5","side":"right","is_pass":false,"left_before":6,"right_before":5},{"actor_rel":"partner","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":1},{"actor_rel":"rho","tile_idx":10,"tile_str":"1-4","side":"right","is_pass":false,"left_before":0,"right_before":1},{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":0,"right_before":4},{"actor_rel":"lho","tile_idx":1,"tile_str":"0-1","side":"left","is_pass":false,"left_before":0,"right_before":4},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":1,"right_before":4},{"actor_rel":"rho","tile_idx":15,"tile_str":"2-4","side":"right","is_pass":false,"left_before":1,"right_before":4}],"cant_have":{"lho":[],"partner":[1,4],"rho":[]}},"legal_actions":[{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":44,"tile_idx":16,"tile_str":"2-5","side":"right"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":36,"tile_idx":8,"tile_str":"1-2","side":"right"},{"action_idx":44,"tile_idx":16,"tile_str":"2-5","side":"right"},{"action_idx":8,"tile_idx":8,"tile_str":"1-2","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"}],"top_probs":[0.9829213619232178,0.017045360058546066,1.6645859432173893e-05,1.6645859432173893e-05]}},"label":null},{"id":"hr_026","source":"mined_disagreement","game_idx":17,"move_idx":14,"stage":"late","public_state":{"current_player_rel":"self","my_hand_tiles":["1-5","4-5","3-4","0-5"],"my_hand_indices":[11,23,19,5],"played_tiles":["0-2","0-4","0-6","1-1","1-3","1-4","1-6","2-4","3-5","4-6","5-6","6-6"],"left_end":1,"right_end":0,"hand_sizes":[4,3,3,2],"board_length":12,"history":[{"actor_rel":"lho","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"partner","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"rho","tile_idx":12,"tile_str":"1-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"self","tile_idx":7,"tile_str":"1-1","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"lho","tile_idx":9,"tile_str":"1-3","side":"left","is_pass":false,"left_before":1,"right_before":6},{"actor_rel":"partner","tile_idx":20,"tile_str":"3-5","side":"left","is_pass":false,"left_before":3,"right_before":6},{"actor_rel":"rho","tile_idx":26,"tile_str":"5-6","side":"left","is_pass":false,"left_before":5,"right_before":6},{"actor_rel":"self","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":6,"right_before":6},{"actor_rel":"lho","tile_idx":24,"tile_str":"4-6","side":"left","is_pass":false,"left_before":6,"right_before":6},{"actor_rel":"partner","tile_idx":15,"tile_str":"2-4","side":"left","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"rho","tile_idx":2,"tile_str":"0-2","side":"left","is_pass":false,"left_before":2,"right_before":6},{"actor_rel":"self","tile_idx":4,"tile_str":"0-4","side":"left","is_pass":false,"left_before":0,"right_before":6},{"actor_rel":"lho","tile_idx":-1,"tile_str":"pass","side":"none","is_pass":true,"left_before":4,"right_before":6},{"actor_rel":"partner","tile_idx":10,"tile_str":"1-4","side":"left","is_pass":false,"left_before":4,"right_before":6},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"right","is_pass":false,"left_before":1,"right_before":6}],"cant_have":{"lho":[4,6],"partner":[6],"rho":[]}},"legal_actions":[{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"},{"action_idx":33,"tile_idx":5,"tile_str":"0-5","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":33,"tile_idx":5,"tile_str":"0-5","side":"right"},{"action_idx":11,"tile_idx":11,"tile_str":"1-5","side":"left"}],"top_probs":[0.9829540848731995,0.01704592816531658]}},"label":null},{"id":"hr_027","source":"mined_disagreement","game_idx":9,"move_idx":1,"stage":"early","public_state":{"current_player_rel":"self","my_hand_tiles":["2-6","4-5","0-2","0-0","0-1","5-6"],"my_hand_indices":[17,23,2,0,1,26],"played_tiles":["0-6","6-6"],"left_end":0,"right_end":6,"hand_sizes":[6,6,5,5],"board_length":2,"history":[{"actor_rel":"partner","tile_idx":27,"tile_str":"6-6","side":"none","is_pass":false,"left_before":-1,"right_before":-1},{"actor_rel":"rho","tile_idx":6,"tile_str":"0-6","side":"left","is_pass":false,"left_before":6,"right_before":6}],"cant_have":{"lho":[],"partner":[],"rho":[]}},"legal_actions":[{"action_idx":0,"tile_idx":0,"tile_str":"0-0","side":"left"},{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"},{"action_idx":2,"tile_idx":2,"tile_str":"0-2","side":"left"},{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"}],"engine_suggestions":{"domino_g00056":{"top_actions":[{"action_idx":45,"tile_idx":17,"tile_str":"2-6","side":"right"},{"action_idx":54,"tile_idx":26,"tile_str":"5-6","side":"right"},{"action_idx":0,"tile_idx":0,"tile_str":"0-0","side":"left"},{"action_idx":1,"tile_idx":1,"tile_str":"0-1","side":"left"}],"top_probs":[0.49926865100860596,0.49926865100860596,0.00048756704200059175,0.00048756704200059175]}},"label":null}]}
 </script>
 
+<script type="text/babel">
+  // Reused verbatim (adapted only to accept hw/vw always explicitly, and a
+  // fixed classic dot scheme) from index.html's board renderer -- the real
+  // game already solves connecting/wrapping/double-orientation correctly,
+  // no need to re-derive that layout math here.
+  function layoutSnakeV2(board, W, H, HW, VW, gap, pads) {
+    const tiles = [];
+    const n = board ? board.length : 0;
+    if (n <= 0) return { tiles };
+
+    pads = (typeof pads === 'number')
+      ? { top: pads, right: pads, bottom: pads, left: pads }
+      : Object.assign({ top: 0, right: 0, bottom: 0, left: 0 }, pads || {});
+
+    const usableW = Math.max(1, W - pads.left - pads.right);
+    const usableH = Math.max(1, H - pads.top - pads.bottom);
+
+    const baseWidths = board.map(t => (t && t.left === t.right) ? VW : HW);
+
+    const rowAssign = new Array(n);
+    let curRow = 0;
+    let curRowW = 0;
+    for (let i = 0; i < n; i++) {
+      if (curRowW + baseWidths[i] > usableW && curRowW > 0) {
+        curRow++;
+        curRowW = 0;
+      }
+      rowAssign[i] = curRow;
+      curRowW += baseWidths[i];
+    }
+    const numRows = curRow + 1;
+
+    const isTopCorner = new Array(n).fill(false);
+    const isBottomCorner = new Array(n).fill(false);
+    const rowTileCount = new Array(numRows).fill(0);
+    for (let r = 0; r < numRows; r++) {
+      let firstIdx = -1, lastIdx = -1, count = 0;
+      for (let i = 0; i < n; i++) {
+        if (rowAssign[i] === r) {
+          if (firstIdx === -1) firstIdx = i;
+          lastIdx = i;
+          count++;
+        }
+      }
+      rowTileCount[r] = count;
+      if (r < numRows - 1 && lastIdx >= 0) isTopCorner[lastIdx] = true;
+      if (r > 0 && firstIdx >= 0) isBottomCorner[firstIdx] = true;
+    }
+    const effW = (i) => {
+      const t = board[i];
+      return (t && t.left === t.right) || isTopCorner[i] || isBottomCorner[i] ? VW : HW;
+    };
+
+    const ROW_GAP = 12;
+    const isSingleTileRow = (r) => rowTileCount[r] === 1;
+
+    const rowY = new Array(numRows);
+    rowY[0] = 0;
+    for (let r = 1; r < numRows; r++) {
+      const skipGap = isSingleTileRow(r - 1) || isSingleTileRow(r);
+      rowY[r] = rowY[r - 1] + HW + (skipGap ? 0 : ROW_GAP);
+    }
+    const chainH = rowY[numRows - 1] + HW;
+    const startY = pads.top + Math.max(0, (usableH - chainH) / 2);
+    for (let r = 0; r < numRows; r++) rowY[r] += startY;
+
+    const _rowWidths = [];
+    for (let r = 0; r < numRows; r++) {
+      let w = 0;
+      for (let i = 0; i < n; i++) if (rowAssign[i] === r) w += effW(i);
+      _rowWidths[r] = w;
+    }
+    let _cur = 0, _minX = 0, _maxX = 0;
+    for (let r = 0; r < numRows; r++) {
+      const _rowEnd = (r % 2 === 0) ? (_cur + _rowWidths[r]) : (_cur - _rowWidths[r]);
+      _minX = Math.min(_minX, _cur, _rowEnd);
+      _maxX = Math.max(_maxX, _cur, _rowEnd);
+      _cur = _rowEnd;
+    }
+    const _boundW = _maxX - _minX;
+    const _offset = pads.left + Math.max(0, (usableW - _boundW) / 2) - _minX;
+    let foldX = _offset;
+
+    for (let r = 0; r < numRows; r++) {
+      const rowIndices = [];
+      for (let i = 0; i < n; i++) if (rowAssign[i] === r) rowIndices.push(i);
+      const rowWidth = rowIndices.reduce((s, i) => s + effW(i), 0);
+      const isReversed = r % 2 === 1;
+
+      let x = foldX;
+      const rowEndX = isReversed ? (x - rowWidth) : (x + rowWidth);
+
+      for (let k = 0; k < rowIndices.length; k++) {
+        const ti = rowIndices[k];
+        const t = board[ti];
+        const isDouble = t.left === t.right;
+        const isTopC = isTopCorner[ti];
+        const isBotC = isBottomCorner[ti];
+        const renderVertical = isDouble || isTopC || isBotC;
+        const tw = effW(ti);
+        const tileX = isReversed ? (x - tw) : x;
+
+        let tileY;
+        if (isBotC) {
+          tileY = rowY[r];
+        } else if (isTopC) {
+          tileY = rowY[r] + (isSingleTileRow(r) ? 0 : ROW_GAP);
+        } else if (renderVertical) {
+          tileY = rowY[r];
+        } else {
+          tileY = rowY[r] + Math.round((HW - VW) / 2);
+        }
+        tiles.push({
+          i: ti,
+          x: Math.round(tileX),
+          y: tileY,
+          orient: renderVertical ? 'vertical' : 'horizontal',
+          flip: isReversed && !renderVertical
+        });
+        x = isReversed ? (x - tw) : (x + tw);
+      }
+
+      foldX = rowEndX;
+    }
+    return { tiles };
+  }
+
+  const REPLAY_DOT_COLORS = {
+    1: ['#2a2a2a', '#111111'],
+    2: ['#22c55e', '#15803d'],
+    3: ['#f87171', '#b91c1c'],
+    4: ['#fb923c', '#c2410c'],
+    5: ['#60a5fa', '#1d4ed8'],
+    6: ['#c084fc', '#7c3aed'],
+  };
+  const ReplayDominoDots = ({ value, dotPxProp, containerPxProp, isHoriz }) => {
+    const dotPx = dotPxProp || 5;
+    const containerPx = containerPxProp || 22;
+    const patterns = isHoriz ? {
+      0: [], 1: [[1,1]],
+      2: [[0,0],[2,2]], 3: [[0,0],[1,1],[2,2]],
+      4: [[0,0],[0,2],[2,0],[2,2]], 5: [[0,0],[0,2],[1,1],[2,0],[2,2]],
+      6: [[0,0],[0,1],[0,2],[2,0],[2,1],[2,2]]
+    } : {
+      0: [], 1: [[1,1]],
+      2: [[0,2],[2,0]], 3: [[0,2],[1,1],[2,0]],
+      4: [[0,0],[0,2],[2,0],[2,2]], 5: [[0,0],[0,2],[1,1],[2,0],[2,2]],
+      6: [[0,0],[0,2],[1,0],[1,2],[2,0],[2,2]]
+    };
+    const dots = patterns[value] || [];
+    const pad = '12%';
+    return (
+      <div style={{ width: containerPx, height: containerPx, position: 'relative' }}>
+        {dots.map((pos, idx) => (
+          <div key={idx} style={{
+            width: dotPx, height: dotPx, position: 'absolute', borderRadius: '50%',
+            background: '#2a221b',
+            top: pos[0] === 0 ? pad : pos[0] === 1 ? '50%' : `calc(100% - ${pad})`,
+            left: pos[1] === 0 ? pad : pos[1] === 1 ? '50%' : `calc(100% - ${pad})`,
+            transform: 'translate(-50%, -50%)',
+          }} />
+        ))}
+      </div>
+    );
+  };
+  const ReplayBoardTile = ({ tile, orientation, flipped, hw, vw }) => {
+    const isVertical = orientation === 'vertical';
+    const val1 = flipped ? tile.right : tile.left;
+    const val2 = flipped ? tile.left : tile.right;
+    const dividerStyle = isVertical
+      ? { borderBottom: '1px solid #b8a888', width: '100%' }
+      : { borderRight: '1px solid #b8a888', height: '100%' };
+    const bDotPx = vw <= 11 ? 1 : vw <= 16 ? 2 : vw <= 22 ? 3 : vw <= 26 ? 4 : 5;
+    const bContPx = vw <= 11 ? 8 : vw <= 16 ? 12 : vw <= 22 ? 15 : vw <= 26 ? 18 : 22;
+    return (
+      <div
+        className="board-tile inline-flex"
+        style={Object.assign({ background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }, isVertical
+          ? { width: vw, height: hw, flexDirection: 'column' }
+          : { width: hw, height: vw, flexDirection: 'row' })}
+      >
+        <div className="flex-1 flex items-center justify-center">
+          <ReplayDominoDots value={val1} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
+        </div>
+        <div style={dividerStyle}></div>
+        <div className="flex-1 flex items-center justify-center">
+          <ReplayDominoDots value={val2} dotPxProp={bDotPx} containerPxProp={bContPx} isHoriz={!isVertical} />
+        </div>
+      </div>
+    );
+  };
+
+  const REPLAY_RELABEL = { self: 'voce', lho: 'esquerda', partner: 'parceiro', rho: 'direita' };
+  function tileNumsFromStr(s) {
+    var p = s.split('-');
+    return [parseInt(p[0], 10), parseInt(p[1], 10)];
+  }
+  // Group the chronological history into one segment per tile placed (a
+  // segment is zero-or-more passes followed by the play that placed the
+  // next tile) so stepping "forward/back between tiles placed" can still
+  // narrate any passes that happened in between.
+  function buildSegments(history) {
+    var segments = [];
+    var current = [];
+    history.forEach(function (e) {
+      current.push(e);
+      if (!e.is_pass) {
+        segments.push(current);
+        current = [];
+      }
+    });
+    if (current.length) segments.push(current);
+    return segments;
+  }
+
+  function BoardReplay({ history }) {
+    const segments = React.useMemo(() => buildSegments(history), [history]);
+    const maxStep = segments.length;
+    const [step, setStep] = React.useState(1);
+    React.useEffect(() => { setStep(1); }, [history]);
+
+    const boardArr = React.useMemo(() => {
+      const arr = [];
+      for (let s = 0; s < step && s < segments.length; s++) {
+        const seg = segments[s];
+        const playEntry = seg[seg.length - 1];
+        if (playEntry.is_pass) continue;
+        const nums = tileNumsFromStr(playEntry.tile_str);
+        const a = nums[0], b = nums[1];
+        if (playEntry.side === 'none' || arr.length === 0) {
+          arr.push({ id: s, left: a, right: b });
+        } else if (playEntry.side === 'left') {
+          const L = arr[0].left;
+          const other = (a === L) ? b : a;
+          arr.unshift({ id: s, left: other, right: L });
+        } else {
+          const R = arr[arr.length - 1].right;
+          const other = (a === R) ? b : a;
+          arr.push({ id: s, left: R, right: other });
+        }
+      }
+      return arr;
+    }, [segments, step]);
+
+    const W = 540, H = 230, HW = 48, VW = 24;
+    const layout = React.useMemo(() => layoutSnakeV2(boardArr, W, H, HW, VW, 1, 8), [boardArr]);
+
+    const caption = segments[step - 1] ? segments[step - 1].map(function (e) {
+      const who = REPLAY_RELABEL[e.actor_rel] || e.actor_rel;
+      if (e.is_pass) return who + ' passou';
+      const sideTxt = e.side === 'left' ? ' (esquerda)' : e.side === 'right' ? ' (direita)' : '';
+      return who + ' jogou ' + e.tile_str + sideTxt;
+    }).join(' · ') : '';
+
+    return (
+      <div>
+        <div style={{ position: 'relative', width: '100%', height: H, background: '#0f3d1e', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+          {layout.tiles.map((p) => {
+            const t = boardArr[p.i];
+            const tw = p.orient === 'horizontal' ? HW : VW;
+            const th = p.orient === 'horizontal' ? VW : HW;
+            return (
+              <div key={p.i} style={{ position: 'absolute', left: p.x, top: p.y, width: tw, height: th }}>
+                <ReplayBoardTile tile={t} orientation={p.orient} flipped={p.flip} hw={HW} vw={VW} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="replay-caption">{caption}</div>
+        <div className="replay-controls">
+          <button className="replay-btn" onClick={() => setStep(function (s) { return Math.max(1, s - 1); })} disabled={step <= 1}>&#9664;</button>
+          <span className="replay-step-label">Jogada {step} / {maxStep}</span>
+          <button className="replay-btn" onClick={() => setStep(function (s) { return Math.min(maxStep, s + 1); })} disabled={step >= maxStep}>&#9654;</button>
+          <button className="replay-btn replay-btn-end" onClick={() => setStep(maxStep)} disabled={step >= maxStep}>Ir para agora</button>
+        </div>
+      </div>
+    );
+  }
+
+  window.renderBoardReplay = function (container, history) {
+    ReactDOM.render(<BoardReplay history={history} />, container);
+  };
+  window.unmountBoardReplay = function (container) {
+    try { ReactDOM.unmountComponentAtNode(container); } catch (e) {}
+  };
+</script>
+
 <script>
 (function () {
   "use strict";
@@ -242,23 +520,17 @@
     });
   }
 
-  // Seat colors: self=brass (you), lho=blue, partner=green (teammate), rho=red.
-  var SEAT_COLORS = { self: '#a6841d', lho: '#1d4ed8', partner: '#15803d', rho: '#b91c1c' };
-
-  function makeDominoEl(a, b, opts) {
-    opts = opts || {};
+  function makeDominoEl(a, b) {
     var el = document.createElement('div');
-    el.className = opts.mini ? 'domino-mini' : 'domino';
-    var pad = opts.mini ? 4 : 8;
-    if (opts.seatColor) el.style.borderColor = opts.seatColor;
+    el.className = 'domino';
     var topHalf = document.createElement('div');
     topHalf.className = 'domino-half';
-    renderDots(topHalf, a, pad);
+    renderDots(topHalf, a);
     var divider = document.createElement('div');
     divider.className = 'domino-divider';
     var botHalf = document.createElement('div');
     botHalf.className = 'domino-half';
-    renderDots(botHalf, b, pad);
+    renderDots(botHalf, b);
     el.appendChild(topHalf);
     el.appendChild(divider);
     el.appendChild(botHalf);
@@ -281,49 +553,6 @@
 
   function relLabel(rel) {
     return { self: 'voce', lho: 'esquerda', partner: 'parceiro', rho: 'direita' }[rel] || rel;
-  }
-  function relShort(rel) {
-    return { self: 'voce', lho: 'esq', partner: 'parc', rho: 'dir' }[rel] || rel;
-  }
-
-  function renderTimeline(history) {
-    var wrap = document.createElement('div');
-    wrap.className = 'timeline-wrap';
-    history.forEach(function (entry) {
-      var item = document.createElement('div');
-      item.className = 'timeline-item';
-
-      var caption = document.createElement('div');
-      caption.className = 'seat-caption seat-' + entry.actor_rel;
-      caption.textContent = relShort(entry.actor_rel);
-      item.appendChild(caption);
-
-      if (entry.is_pass) {
-        var chip = document.createElement('div');
-        chip.className = 'pass-chip';
-        chip.style.borderColor = SEAT_COLORS[entry.actor_rel];
-        chip.textContent = 'passou';
-        item.appendChild(chip);
-
-        var hint = document.createElement('div');
-        hint.className = 'pass-hint';
-        var vals = entry.left_before === entry.right_before
-          ? [entry.left_before] : [entry.left_before, entry.right_before];
-        hint.textContent = 'sem ' + vals.filter(function (v) { return v >= 0; }).join('/');
-        item.appendChild(hint);
-      } else {
-        var nums = tileNums(entry.tile_str);
-        var tileEl = makeDominoEl(nums[0], nums[1], { mini: true, seatColor: SEAT_COLORS[entry.actor_rel] });
-        item.appendChild(tileEl);
-
-        var sideLbl = document.createElement('div');
-        sideLbl.className = 'pass-hint';
-        sideLbl.textContent = entry.side === 'left' ? 'esq' : entry.side === 'right' ? 'dir' : '';
-        item.appendChild(sideLbl);
-      }
-      wrap.appendChild(item);
-    });
-    return wrap;
   }
 
   function renderCantHave(cantHave) {
@@ -518,16 +747,19 @@
     });
     card.appendChild(infoRow);
 
-    // Full board history: every tile/pass in order, colored border by who
-    // played it, so a pro can read the whole game the way they would at
-    // the table -- not just the last few moves.
+    // Full board replay: reuses the real game's own layoutSnakeV2 + BoardTile
+    // rendering (mounted via React) so tiles actually connect the way they
+    // do on the felt, with step-through controls to walk the history.
     var history = item.public_state.history;
     if (history && history.length) {
       var boardLabel = document.createElement('div');
       boardLabel.className = 'board-label';
       boardLabel.textContent = 'Tabuleiro completo';
       card.appendChild(boardLabel);
-      card.appendChild(renderTimeline(history));
+      var replayMount = document.createElement('div');
+      card.appendChild(replayMount);
+      window.renderBoardReplay(replayMount, history);
+      lastReplayContainer = replayMount;
     }
 
     // Clues from passes: which pips each opponent is known NOT to hold.
@@ -817,7 +1049,13 @@
     URL.revokeObjectURL(url);
   }
 
+  var lastReplayContainer = null;
+
   function render() {
+    if (lastReplayContainer) {
+      try { window.unmountBoardReplay(lastReplayContainer); } catch (e) {}
+      lastReplayContainer = null;
+    }
     if (state.screen === 'start') renderStart();
     else if (state.screen === 'position') {
       if (state.idx >= ITEMS.length) { state.screen = 'summary'; render(); return; }
