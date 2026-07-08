@@ -831,10 +831,21 @@
     card.appendChild(boardRow);
 
     // Hand sizes
+    var handSizeLabel = document.createElement('div');
+    handSizeLabel.className = 'board-label';
+    handSizeLabel.textContent = 'Pedras na mao de cada jogador';
+    card.appendChild(handSizeLabel);
+
     var infoRow = document.createElement('div');
     infoRow.className = 'info-row';
     var hs = item.public_state.hand_sizes;
-    var labels = ['voce: ' + hs[0], 'esquerda: ' + hs[1], 'parceiro: ' + hs[2], 'direita: ' + hs[3]];
+    var pluralize = function (n) { return n === 1 ? 'pedra' : 'pedras'; };
+    var labels = [
+      'voce: ' + hs[0] + ' ' + pluralize(hs[0]),
+      'esquerda: ' + hs[1] + ' ' + pluralize(hs[1]),
+      'parceiro: ' + hs[2] + ' ' + pluralize(hs[2]),
+      'direita: ' + hs[3] + ' ' + pluralize(hs[3]),
+    ];
     labels.forEach(function (t) {
       var pill = document.createElement('div');
       pill.className = 'info-pill';
