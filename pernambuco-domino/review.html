@@ -394,10 +394,10 @@
     return segments;
   }
 
-  const MIN_UNIT = 14, MAX_UNIT = 26; // VW clamp: legible dots vs. not comically large on short boards.
-  // 9 was too small to read on late-game boards (14+ tiles) -- the container
-  // already has overflowX:auto, so long boards scroll instead of shrinking
-  // past a readable floor.
+  const MIN_UNIT = 20, MAX_UNIT = 26; // VW clamp: legible dots vs. not comically large on short boards.
+  // 9, then 14, were both too small to read on late-game boards (14+ tiles)
+  // -- the container already has overflowX:auto, so long boards scroll
+  // instead of shrinking past a readable floor.
 
   function BoardReplay({ history }) {
     const segments = React.useMemo(() => buildSegments(history), [history]);
@@ -476,7 +476,7 @@
 
     const caption = segments[step - 1] ? segments[step - 1].map(function (e) {
       const who = REPLAY_RELABEL[e.actor_rel] || e.actor_rel;
-      if (e.is_pass) return who + ' passou';
+      if (e.is_pass) return who + ' tocou';
       const sideTxt = e.side === 'left' ? ' (esquerda)' : e.side === 'right' ? ' (direita)' : '';
       return who + ' jogou ' + e.tile_str + sideTxt;
     }).join(' · ') : '';
@@ -663,7 +663,7 @@
     box.className = 'cant-have-box';
     var title = document.createElement('div');
     title.className = 'cant-have-title';
-    title.textContent = 'Pistas de quem passou';
+    title.textContent = 'Pistas de quem tocou';
     box.appendChild(title);
     seats.forEach(function (rel) {
       var row = document.createElement('div');
@@ -949,7 +949,7 @@
       var passedNote = document.createElement('div');
       passedNote.className = 'side-btn';
       passedNote.style.cssText = 'display:block;margin:10px auto 0;opacity:0.6;cursor:default;';
-      passedNote.textContent = 'Voce passou';
+      passedNote.textContent = 'Voce tocou';
       card.appendChild(passedNote);
     }
 
