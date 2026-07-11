@@ -579,7 +579,11 @@
       var item = itemById[id];
       var ans = answers[id];
       if (!item) return; // id no longer exists in current dataset at all
-      var stillLegal = item.legal_actions.some(function (a) { return a.action_idx === ans.human_action_idx; });
+      var legalIdxs = item.legal_actions.map(function (a) { return a.action_idx; });
+      var stillLegal = ans.is_tie
+        ? (ans.tied_action_indices || []).length >= 2 &&
+          ans.tied_action_indices.every(function (a) { return legalIdxs.indexOf(a) !== -1; })
+        : legalIdxs.indexOf(ans.human_action_idx) !== -1;
       if (stillLegal) clean[id] = ans;
     });
     return clean;
@@ -953,6 +957,25 @@
       card.appendChild(passedNote);
     }
 
+    // Davidson-Luce tie extension (AUDIT_PROMPT_v39 round): forcing a pick
+    // between two moves the reviewer genuinely sees as equal injects noise
+    // into the preference model. Offered whenever there's a real choice to
+    // be indifferent about (>=2 legal actions).
+    if (item.legal_actions.length >= 2 && !existing) {
+      var tieBtn = document.createElement('button');
+      tieBtn.className = 'side-btn';
+      tieBtn.style.cssText = 'display:block;margin:8px auto 0;opacity:0.75;';
+      tieBtn.textContent = 'Empate / Indiferente';
+      tieBtn.onclick = function () { recordTie(); };
+      card.appendChild(tieBtn);
+    } else if (existing && existing.is_tie) {
+      var tieNote = document.createElement('div');
+      tieNote.className = 'side-btn';
+      tieNote.style.cssText = 'display:block;margin:8px auto 0;opacity:0.6;cursor:default;';
+      tieNote.textContent = 'Voce marcou empate';
+      card.appendChild(tieNote);
+    }
+
     var sidePromptHolder = document.createElement('div');
     sidePromptHolder.id = 'side-prompt-holder';
     card.appendChild(sidePromptHolder);
@@ -1007,6 +1030,23 @@
     render();
   }
 
+  function recordTie() {
+    // Davidson-Luce tie extension (AUDIT_PROMPT_v39 round): "all the legal
+    // moves shown are equally good to me," rather than forcing a pick among
+    // options the reviewer doesn't actually have a preference between.
+    var item = ITEMS[state.idx];
+    var elapsed = state.startedAt ? (Date.now() - state.startedAt) : null;
+    state.answers[item.id] = {
+      is_tie: true,
+      tied_action_indices: item.legal_actions.map(function (a) { return a.action_idx; }),
+      elapsed_ms: elapsed,
+      answered_at: new Date().toISOString(),
+    };
+    state.startedAt = Date.now();
+    saveAnswers();
+    render();
+  }
+
   function findAction(item, actionIdx) {
     for (var i = 0; i < item.legal_actions.length; i++) {
       if (item.legal_actions[i].action_idx === actionIdx) return item.legal_actions[i];
@@ -1019,15 +1059,32 @@
     box.className = 'reveal-box';
 
     var eng = item.engine_suggestions[Object.keys(item.engine_suggestions)[0]];
-    var humanAction = findAction(item, answer.human_action_idx);
-    var humanLabel = humanAction ? actionLabel(humanAction) : 'passar';
+    var isTieAnswer = !!answer.is_tie;
+    var tiedSet = isTieAnswer ? answer.tied_action_indices : [answer.human_action_idx];
 
-    var rankIdx = eng.top_actions.findIndex(function (a) { return a.action_idx === answer.human_action_idx; });
+    var humanLabel;
+    if (isTieAnswer) {
+      humanLabel = tiedSet.map(function (idx) {
+        var a = findAction(item, idx);
+        return a ? actionLabel(a) : '?';
+      }).join(' ou ');
+    } else {
+      var humanAction = findAction(item, answer.human_action_idx);
+      humanLabel = humanAction ? actionLabel(humanAction) : 'passar';
+    }
+
+    var rankIdx = eng.top_actions.findIndex(function (a) { return tiedSet.indexOf(a.action_idx) !== -1; });
     var isTop1 = rankIdx === 0;
 
     var verdict = document.createElement('div');
     verdict.className = 'reveal-verdict ' + (isTop1 ? 'reveal-match' : 'reveal-miss');
-    verdict.textContent = isTop1 ? 'Igual a IA!' : (rankIdx >= 0 ? 'Diferente (rank #' + (rankIdx + 1) + ' na IA)' : 'Diferente (fora do top 4 da IA)');
+    if (isTieAnswer) {
+      verdict.textContent = isTop1 ? 'IA concorda que e proximo (top 1 esta no seu empate)'
+        : (rankIdx >= 0 ? 'IA prefere outra opcao (rank #' + (rankIdx + 1) + ' esta no seu empate)'
+                        : 'IA prefere algo fora do seu empate');
+    } else {
+      verdict.textContent = isTop1 ? 'Igual a IA!' : (rankIdx >= 0 ? 'Diferente (rank #' + (rankIdx + 1) + ' na IA)' : 'Diferente (fora do top 4 da IA)');
+    }
     box.appendChild(verdict);
 
     var youLine = document.createElement('div');
@@ -1040,7 +1097,7 @@
     eng.top_actions.forEach(function (a, i) {
       var row = document.createElement('div');
       row.className = 'rank-row';
-      var isHuman = a.action_idx === answer.human_action_idx;
+      var isHuman = tiedSet.indexOf(a.action_idx) !== -1;
       var label = document.createElement('div');
       label.className = 'rank-label';
       label.textContent = actionLabel(a);
@@ -1105,12 +1162,19 @@
       var ans = state.answers[item.id];
       if (!ans) return null;
       var eng = item.engine_suggestions[Object.keys(item.engine_suggestions)[0]];
-      var rankIdx = eng.top_actions.findIndex(function (a) { return a.action_idx === ans.human_action_idx; });
-      var humanAction = findAction(item, ans.human_action_idx);
+      var tiedSet = ans.is_tie ? ans.tied_action_indices : [ans.human_action_idx];
+      var rankIdx = eng.top_actions.findIndex(function (a) { return tiedSet.indexOf(a.action_idx) !== -1; });
+      var humanLabel;
+      if (ans.is_tie) {
+        humanLabel = 'empate (' + tiedSet.length + ')';
+      } else {
+        var humanAction = findAction(item, ans.human_action_idx);
+        humanLabel = humanAction ? actionLabel(humanAction) : 'passar';
+      }
       return {
         id: item.id,
         stage: item.stage,
-        human: humanAction ? actionLabel(humanAction) : 'passar',
+        human: humanLabel,
         model: actionLabel(eng.top_actions[0]) + ' (' + (eng.top_probs[0] * 100).toFixed(0) + '%)',
         match: rankIdx === 0,
       };
@@ -1205,18 +1269,30 @@
       items: ITEMS.map(function (item) {
         var ans = state.answers[item.id];
         if (!ans) return null;
-        var action = findAction(item, ans.human_action_idx);
-        // action should always resolve -- discardStaleAnswers() already drops
-        // any saved answer whose action_idx isn't legal for this item. If it
-        // ever doesn't (shouldn't happen), say so plainly instead of the old
-        // bug where this silently defaulted to "pass".
-        var label = {
-          preferred_actions: [action ? (action.side === 'pass' ? 'pass' : action.tile_str + '_' + action.side) : 'STALE_UNRESOLVED'],
-          preferred_tiles: action && action.side !== 'pass' ? [action.tile_str] : [],
-          human_action_idx: ans.human_action_idx,
-          elapsed_ms: ans.elapsed_ms,
-          answered_at: ans.answered_at,
-        };
+        var label;
+        if (ans.is_tie) {
+          // Davidson-Luce tie extension (AUDIT_PROMPT_v39 round) -- no single
+          // preferred action, review_data.tied_action_indices() reads this.
+          label = {
+            is_tie: true,
+            tied_action_indices: ans.tied_action_indices,
+            elapsed_ms: ans.elapsed_ms,
+            answered_at: ans.answered_at,
+          };
+        } else {
+          var action = findAction(item, ans.human_action_idx);
+          // action should always resolve -- discardStaleAnswers() already drops
+          // any saved answer whose action_idx isn't legal for this item. If it
+          // ever doesn't (shouldn't happen), say so plainly instead of the old
+          // bug where this silently defaulted to "pass".
+          label = {
+            preferred_actions: [action ? (action.side === 'pass' ? 'pass' : action.tile_str + '_' + action.side) : 'STALE_UNRESOLVED'],
+            preferred_tiles: action && action.side !== 'pass' ? [action.tile_str] : [],
+            human_action_idx: ans.human_action_idx,
+            elapsed_ms: ans.elapsed_ms,
+            answered_at: ans.answered_at,
+          };
+        }
         return Object.assign({}, item, { label: label });
       }).filter(Boolean),
     };
