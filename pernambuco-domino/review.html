@@ -394,7 +394,10 @@
     return segments;
   }
 
-  const MIN_UNIT = 9, MAX_UNIT = 26; // VW clamp: legible dots vs. not comically large on short boards
+  const MIN_UNIT = 14, MAX_UNIT = 26; // VW clamp: legible dots vs. not comically large on short boards.
+  // 9 was too small to read on late-game boards (14+ tiles) -- the container
+  // already has overflowX:auto, so long boards scroll instead of shrinking
+  // past a readable floor.
 
   function BoardReplay({ history }) {
     const segments = React.useMemo(() => buildSegments(history), [history]);
@@ -736,13 +739,27 @@
       var name = nameInput.value.trim() || 'Anonimo';
       var existing = loadAnswers(name);
       var n = Object.keys(existing).length;
-      resumeNote.textContent = n > 0
-        ? (n + ' de ' + ITEMS.length + ' resposta(s) salva(s) para "' + name + '". "Comecar" continua de onde parou.')
-        : '';
+      var isComplete = n > 0 && n >= ITEMS.length;
+      if (isComplete) {
+        // Bug fix (2026-07-11): reusing a name that already finished the
+        // whole set used to silently drop straight into item 1 with every
+        // answer pre-filled -- the AI-ranking reveal showed immediately on
+        // every position because it was already "answered" from the prior
+        // session, before any fresh tap this time. Make the completed state
+        // explicit instead of quietly replaying old answers as if they were
+        // new choices.
+        resumeNote.textContent = 'Voce ja respondeu todas as ' + ITEMS.length +
+          ' posicoes como "' + name + '". "Comecar" mostra o resumo dessas ' +
+          'respostas. Para refazer do zero, apague as respostas salvas abaixo primeiro.';
+      } else {
+        resumeNote.textContent = n > 0
+          ? (n + ' de ' + ITEMS.length + ' resposta(s) salva(s) para "' + name + '". "Comecar" continua de onde parou.')
+          : '';
+      }
       resetBtn.style.display = n > 0 ? 'block' : 'none';
+      startBtn.textContent = isComplete ? 'Ver resumo' : 'Comecar';
     }
     nameInput.addEventListener('input', updateResumeNote);
-    updateResumeNote();
 
     var startBtn = document.createElement('button');
     startBtn.className = 'start-btn';
@@ -752,11 +769,17 @@
       state.reviewerName = name;
       saveLastName(name);
       state.answers = loadAnswers(name);
-      state.screen = 'position';
       state.startedAt = Date.now();
-      state.idx = firstUnanswered();
+      var n = Object.keys(state.answers).length;
+      if (n > 0 && n >= ITEMS.length) {
+        state.screen = 'summary';
+      } else {
+        state.screen = 'position';
+        state.idx = firstUnanswered();
+      }
       render();
     };
+    updateResumeNote();
     card.insertBefore(startBtn, resumeNote);
 
     r.appendChild(topBar);
@@ -890,13 +913,23 @@
       (legalByTile[a.tile_idx] = legalByTile[a.tile_idx] || []).push(a);
     });
 
+    // Once this item has a recorded answer (this session or a prior one),
+    // the hand locks: no onclick handlers, so a second tap can never silently
+    // overwrite the recorded choice. The chosen tile gets the (previously
+    // unused) .chosen highlight so it's visually obvious what was picked.
+    var existing = state.answers[item.id];
+    var chosenAction = existing ? findAction(item, existing.human_action_idx) : null;
+    var chosenTileIdx = chosenAction ? chosenAction.tile_idx : null;
+
     item.public_state.my_hand_indices.forEach(function (tileIdx, i) {
       var nums = tileNums(item.public_state.my_hand_tiles[i]);
       var el = makeDominoEl(nums[0], nums[1]);
       var actions = legalByTile[tileIdx];
       var isLegal = !!actions;
       el.className += isLegal ? ' legal' : ' illegal';
-      if (isLegal) {
+      if (existing) {
+        if (tileIdx === chosenTileIdx) el.className += ' chosen';
+      } else if (isLegal) {
         el.onclick = function () { onTileClick(tileIdx, actions); };
       }
       handRow.appendChild(el);
@@ -904,7 +937,7 @@
     card.appendChild(handRow);
 
     var canPass = item.legal_actions.some(function (a) { return a.side === 'pass'; });
-    if (canPass) {
+    if (canPass && !existing) {
       var passBtn = document.createElement('button');
       passBtn.className = 'side-btn';
       passBtn.style.display = 'block';
@@ -912,13 +945,18 @@
       passBtn.textContent = 'Passar (nao ha jogada)';
       passBtn.onclick = function () { recordAnswer(56); };
       card.appendChild(passBtn);
+    } else if (canPass && existing && existing.human_action_idx === 56) {
+      var passedNote = document.createElement('div');
+      passedNote.className = 'side-btn';
+      passedNote.style.cssText = 'display:block;margin:10px auto 0;opacity:0.6;cursor:default;';
+      passedNote.textContent = 'Voce passou';
+      card.appendChild(passedNote);
     }
 
     var sidePromptHolder = document.createElement('div');
     sidePromptHolder.id = 'side-prompt-holder';
     card.appendChild(sidePromptHolder);
 
-    var existing = state.answers[item.id];
     if (existing) {
       card.appendChild(renderReveal(item, existing));
     }
@@ -1024,15 +1062,20 @@
     var nextBtn = document.createElement('button');
     nextBtn.className = 'next-btn';
     nextBtn.textContent = (state.idx + 1 < ITEMS.length) ? 'Proxima posicao' : 'Ver resumo';
-    nextBtn.onclick = function () {
-      if (state.idx + 1 < ITEMS.length) {
-        state.idx += 1;
-      } else {
-        state.screen = 'summary';
-      }
-      render();
-    };
+    nextBtn.onclick = goToNext;
     box.appendChild(nextBtn);
+
+    var autoNote = document.createElement('div');
+    autoNote.className = 'footer-note';
+    autoNote.style.marginTop = '4px';
+    autoNote.textContent = 'Avancando automaticamente...';
+    box.appendChild(autoNote);
+
+    // Auto-advance so answering is a single tap, not tap-then-tap-next --
+    // the button above still works immediately for anyone who doesn't want
+    // to wait. clearPendingAdvance() at the top of every render() cancels
+    // this if the user navigates away some other way first.
+    pendingAdvanceTimer = setTimeout(goToNext, AUTO_ADVANCE_MS);
 
     return box;
   }
@@ -1192,9 +1235,24 @@
     URL.revokeObjectURL(url);
   }
 
+  var AUTO_ADVANCE_MS = 2500; // time to glance at the AI-comparison reveal before auto-advancing
   var lastReplayContainer = null;
+  var pendingAdvanceTimer = null;
+  function clearPendingAdvance() {
+    if (pendingAdvanceTimer) { clearTimeout(pendingAdvanceTimer); pendingAdvanceTimer = null; }
+  }
+  function goToNext() {
+    clearPendingAdvance();
+    if (state.idx + 1 < ITEMS.length) {
+      state.idx += 1;
+    } else {
+      state.screen = 'summary';
+    }
+    render();
+  }
 
   function render() {
+    clearPendingAdvance();
     if (lastReplayContainer) {
       try { window.unmountBoardReplay(lastReplayContainer); } catch (e) {}
       lastReplayContainer = null;
