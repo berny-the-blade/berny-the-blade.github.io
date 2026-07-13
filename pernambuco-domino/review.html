@@ -11,6 +11,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Prata&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -530,6 +531,7 @@
   // separate from rooms/ (live game state) and telemetry/ (gameplay data) --
   // see firebase/database.rules.json.
   var _fbReady = false;
+  var _authReady = null;
   try {
     firebase.initializeApp({
       apiKey: "AIzaSyCbfXAy3Z_Hs_mQRNHCLk30Ext4sq3k-jA",
@@ -541,6 +543,11 @@
       appId: "1:464393298578:web:f5781c8ccc0edffed7fc4b"
     });
     _fbReady = true;
+    // review_results writes now require auth != null (see database.rules.json) --
+    // anonymous sign-in is enough to satisfy that, matching index.html's pattern.
+    _authReady = firebase.auth().signInAnonymously().catch(function (e) {
+      console.warn('Anonymous auth failed:', e);
+    });
   } catch (e) { console.warn('Firebase init failed:', e); }
 
   var state = {
@@ -1251,7 +1258,9 @@
     statusEl.textContent = 'Enviando resultados...';
     var payload = buildExportPayload();
     var entryId = sanitizeName(state.reviewerName) + '_' + Date.now();
-    firebase.database().ref('review_results/' + entryId).set(payload).then(function () {
+    Promise.resolve(_authReady).then(function () {
+      return firebase.database().ref('review_results/' + entryId).set(payload);
+    }).then(function () {
       statusEl.className = 'sync-status ok';
       statusEl.textContent = 'Resultados enviados automaticamente.';
     }).catch(function (err) {
