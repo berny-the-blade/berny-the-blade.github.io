@@ -555,6 +555,7 @@
     idx: 0,
     pendingTile: null,     // tile_idx awaiting a side choice
     reviewerName: null,
+    entryId: null,
     answers: {},
     startedAt: null,
   };
@@ -564,6 +565,21 @@
   }
   function answersKey(name) {
     return BASE_KEY + '__' + sanitizeName(name);
+  }
+  function entryIdKey(name) {
+    return BASE_KEY + '__entryid__' + sanitizeName(name);
+  }
+  // Stable per-reviewer entryId, reused across reloads/resumes so repeated
+  // partial saves (see saveProgressToFirebase) land on the same
+  // review_progress/{entryId} node instead of littering a new one per visit.
+  function loadOrCreateEntryId(name) {
+    var id;
+    try { id = localStorage.getItem(entryIdKey(name)); } catch (e) { id = null; }
+    if (!id) {
+      id = sanitizeName(name) + '_' + Date.now();
+      try { localStorage.setItem(entryIdKey(name), id); } catch (e) {}
+    }
+    return id;
   }
   function loadAnswers(name) {
     try {
@@ -778,6 +794,7 @@
     startBtn.onclick = function () {
       var name = nameInput.value.trim() || 'Anonimo';
       state.reviewerName = name;
+      state.entryId = loadOrCreateEntryId(name);
       saveLastName(name);
       state.answers = loadAnswers(name);
       state.startedAt = Date.now();
@@ -1034,6 +1051,7 @@
     };
     state.startedAt = Date.now();
     saveAnswers();
+    saveProgressToFirebase();
     render();
   }
 
@@ -1051,7 +1069,31 @@
     };
     state.startedAt = Date.now();
     saveAnswers();
+    saveProgressToFirebase();
     render();
+  }
+
+  // Incrementally mirrors in-progress answers to review_progress/{entryId}
+  // so a session that never reaches the final screen (closed tab, crashed
+  // browser, auto-submit failure) still leaves something recoverable --
+  // unlike review_results/, this node allows repeated overwrite (see
+  // firebase/database.rules.json) since it's updated after every answer.
+  // Debounced: rapid answers (e.g. undo/redo) collapse into one write.
+  var _progressSaveTimer = null;
+  function saveProgressToFirebase() {
+    if (!_fbReady || !state.entryId) return;
+    if (_progressSaveTimer) clearTimeout(_progressSaveTimer);
+    _progressSaveTimer = setTimeout(function () {
+      var payload = buildExportPayload();
+      payload.in_progress = true;
+      payload.n_answered = payload.items.length;
+      payload.n_total = ITEMS.length;
+      Promise.resolve(_authReady).then(function () {
+        return firebase.database().ref('review_progress/' + state.entryId).set(payload);
+      }).catch(function (err) {
+        console.warn('Progress auto-save failed:', err);
+      });
+    }, 800);
   }
 
   function findAction(item, actionIdx) {
@@ -1245,10 +1287,28 @@
     r.appendChild(card);
   }
 
+  function submittedKey(name) {
+    return BASE_KEY + '__submitted__' + sanitizeName(name);
+  }
+
   var _autoSubmitAttempted = false;
   function autoSubmitToFirebase(statusEl) {
     if (_autoSubmitAttempted) return;
     _autoSubmitAttempted = true;
+    // entryId is now stable per reviewer (see loadOrCreateEntryId), reused
+    // by every partial save. review_results/{entryId} is write-once
+    // (".write": "!data.exists()", see database.rules.json), so a revisit
+    // after a completed submission would hit permission-denied here -- not
+    // a real failure, just re-showing a screen already synced. Short-circuit
+    // with a local flag instead of showing a misleading error banner.
+    var subKey = submittedKey(state.reviewerName);
+    try {
+      if (localStorage.getItem(subKey) === state.entryId) {
+        statusEl.className = 'sync-status ok';
+        statusEl.textContent = 'Resultados ja enviados anteriormente.';
+        return;
+      }
+    } catch (e) {}
     if (!_fbReady) {
       statusEl.className = 'sync-status error';
       statusEl.textContent = 'Nao foi possivel conectar -- use "Baixar resultados" abaixo.';
@@ -1257,12 +1317,13 @@
     statusEl.className = 'sync-status sending';
     statusEl.textContent = 'Enviando resultados...';
     var payload = buildExportPayload();
-    var entryId = sanitizeName(state.reviewerName) + '_' + Date.now();
+    var entryId = state.entryId || loadOrCreateEntryId(state.reviewerName);
     Promise.resolve(_authReady).then(function () {
       return firebase.database().ref('review_results/' + entryId).set(payload);
     }).then(function () {
       statusEl.className = 'sync-status ok';
       statusEl.textContent = 'Resultados enviados automaticamente.';
+      try { localStorage.setItem(subKey, entryId); } catch (e) {}
     }).catch(function (err) {
       console.warn('Auto-submit failed:', err);
       statusEl.className = 'sync-status error';
