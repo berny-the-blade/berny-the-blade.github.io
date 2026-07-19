@@ -348,8 +348,8 @@
     const dividerStyle = isVertical
       ? { borderBottom: '1px solid #b8a888', width: '100%' }
       : { borderRight: '1px solid #b8a888', height: '100%' };
-    const bDotPx = vw <= 11 ? 1 : vw <= 16 ? 2 : vw <= 22 ? 3 : vw <= 26 ? 4 : 5;
-    const bContPx = vw <= 11 ? 8 : vw <= 16 ? 12 : vw <= 22 ? 15 : vw <= 26 ? 18 : 22;
+    const bDotPx = vw <= 11 ? 1 : vw <= 16 ? 2 : vw <= 22 ? 3 : vw <= 26 ? 4 : vw <= 32 ? 5 : 6;
+    const bContPx = vw <= 11 ? 8 : vw <= 16 ? 12 : vw <= 22 ? 15 : vw <= 26 ? 18 : vw <= 32 ? 22 : 26;
     const cellStyle = { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 0, minHeight: 0 };
     return (
       <div
@@ -395,10 +395,10 @@
     return segments;
   }
 
-  const MIN_UNIT = 20, MAX_UNIT = 26; // VW clamp: legible dots vs. not comically large on short boards.
-  // 9, then 14, were both too small to read on late-game boards (14+ tiles)
-  // -- the container already has overflowX:auto, so long boards scroll
-  // instead of shrinking past a readable floor.
+  const MIN_UNIT = 30, MAX_UNIT = 36; // VW clamp: legible dots vs. not comically large on short boards.
+  // 9, then 14, then 20 were all still too small to read on mid/late-game
+  // boards -- the container already has overflowX:auto, so long boards
+  // scroll instead of shrinking past a readable floor.
 
   function BoardReplay({ history }) {
     const segments = React.useMemo(() => buildSegments(history), [history]);
