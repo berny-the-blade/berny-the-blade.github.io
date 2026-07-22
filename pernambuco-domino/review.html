@@ -407,7 +407,7 @@
     // opening -- reviewers step BACK through history from here rather than
     // clicking forward from an almost-empty board to find the real position.
     const [step, setStep] = React.useState(maxStep || 1);
-    React.useEffect(() => { setStep(1); }, [history]);
+    React.useEffect(() => { setStep(segments.length || 1); }, [history]);
 
     const boardArr = React.useMemo(() => {
       const arr = [];
@@ -448,34 +448,36 @@
       return () => window.removeEventListener('resize', measure);
     }, []);
 
-    const totalUnits = React.useMemo(() => {
-      let units = 0;
-      segments.forEach(function (seg) {
-        const playEntry = seg[seg.length - 1];
-        if (playEntry.is_pass) return;
-        const nums = tileNumsFromStr(playEntry.tile_str);
-        units += (nums[0] === nums[1]) ? 1 : 2; // double = 1 VW-unit wide, non-double = 2 (HW)
-      });
-      return Math.max(1, units);
-    }, [segments]);
-
-    const unitPx = React.useMemo(() => {
-      const avail = Math.max(40, measuredW - 16);
-      return Math.max(MIN_UNIT, Math.min(MAX_UNIT, Math.floor(avail / totalUnits)));
-    }, [measuredW, totalUnits]);
-
+    // Wrap the board into multiple rows (the game's "Em fileiras" snake
+    // layout) instead of one long horizontally-scrolling strip. Tiles keep a
+    // fixed readable size and the chain folds to the next row when it hits the
+    // real container width. Previously unitPx shrank to force the whole board
+    // into ONE row, which on mid/late-game boards either scrolled sideways or
+    // crammed the tiles too small to read.
+    const PAD = 8, ROW_GAP = 12;
+    const usableW = Math.max(40, measuredW - PAD * 2);
+    // Readable tile size, capped so a few tiles still fit per row on a narrow
+    // phone; the snake layout handles however many rows that implies.
+    const unitPx = Math.max(MIN_UNIT, Math.min(MAX_UNIT, Math.floor(usableW / 4)));
     const VW = unitPx, HW = unitPx * 2;
-    const H = HW + 16; // tallest single-row element (a double, HW tall) + 8px top/bottom pad
-    // H must match what's actually rendered below -- layoutSnakeV2 centers
-    // tiles vertically using this same H, so a mismatch pushes tiles past
-    // the rendered container's edge.
-    const contentW = React.useMemo(() => {
-      const sum = boardArr.reduce(function (s, t) { return s + (t.left === t.right ? VW : HW); }, 0);
-      return Math.max(1, sum) + 16;
-    }, [boardArr, VW, HW]);
+
+    // Count the rows the snake layout will produce at this width (mirrors its
+    // own greedy baseWidths wrap) so the container is tall enough to show
+    // every row -- layoutSnakeV2 returns tile positions only, not a height.
+    const numRows = React.useMemo(() => {
+      let rows = 1, w = 0;
+      boardArr.forEach(function (t) {
+        const bw = (t.left === t.right) ? VW : HW;
+        if (w + bw > usableW && w > 0) { rows++; w = 0; }
+        w += bw;
+      });
+      return rows;
+    }, [boardArr, usableW, VW, HW]);
+
+    const H = numRows * HW + (numRows - 1) * ROW_GAP + PAD * 2;
     const layout = React.useMemo(
-      () => layoutSnakeV2(boardArr, contentW + 40, H, HW, VW, 1, 8),
-      [boardArr, contentW, HW, VW, H]
+      () => layoutSnakeV2(boardArr, measuredW, H, HW, VW, 1, PAD),
+      [boardArr, measuredW, H, HW, VW]
     );
 
     const caption = segments[step - 1] ? segments[step - 1].map(function (e) {
@@ -487,8 +489,8 @@
 
     return (
       <div>
-        <div ref={containerRef} style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', background: '#0f3d1e', borderRadius: 10, marginBottom: 8 }}>
-          <div style={{ position: 'relative', width: contentW, height: H, margin: '0 auto' }}>
+        <div ref={containerRef} style={{ width: '100%', overflowX: 'hidden', overflowY: 'hidden', background: '#0f3d1e', borderRadius: 10, marginBottom: 8 }}>
+          <div style={{ position: 'relative', width: '100%', height: H }}>
             {layout.tiles.map((p) => {
               const t = boardArr[p.i];
               const tw = p.orient === 'horizontal' ? HW : VW;
