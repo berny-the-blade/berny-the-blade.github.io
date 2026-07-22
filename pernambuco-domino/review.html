@@ -403,7 +403,10 @@
   function BoardReplay({ history }) {
     const segments = React.useMemo(() => buildSegments(history), [history]);
     const maxStep = segments.length;
-    const [step, setStep] = React.useState(1);
+    // Open on the full current board (the position being decided), not the
+    // opening -- reviewers step BACK through history from here rather than
+    // clicking forward from an almost-empty board to find the real position.
+    const [step, setStep] = React.useState(maxStep || 1);
     React.useEffect(() => { setStep(1); }, [history]);
 
     const boardArr = React.useMemo(() => {
@@ -523,7 +526,18 @@
 
   var DATA = JSON.parse(document.getElementById('position-data').textContent);
   var ITEMS = DATA.items;
-  var BASE_KEY = 'domino_review_' + (DATA.meta.champion_checkpoint || 'session').replace(/[^a-z0-9]/gi, '_');
+  // Batch tag from the item-id prefix (hr_/hr2_/hr3_ -> "hr"/"hr2"/"hr3").
+  // Every batch reuses the same champion checkpoint, so keying per-reviewer
+  // state (answers, entryId, submitted-flag) on the checkpoint ALONE made all
+  // batches collide: a reviewer who finished a prior batch reused that batch's
+  // stable entryId, so review_results/{entryId} (write-once) rejected the new
+  // submission and autoSubmit short-circuited on the stale submitted-flag --
+  // the new batch's answers only ever reached review_progress, which ingest
+  // discards in favor of the same-id completed review_results entry. Folding
+  // the batch tag into BASE_KEY namespaces each batch independently.
+  var BATCH_TAG = (ITEMS[0] && ITEMS[0].id
+    ? ITEMS[0].id.replace(/\d+$/, '').replace(/_+$/, '') : 'b') || 'b';
+  var BASE_KEY = 'domino_review_' + (DATA.meta.champion_checkpoint || 'session').replace(/[^a-z0-9]/gi, '_') + '__' + BATCH_TAG;
   var LAST_NAME_KEY = 'domino_review_last_name';
 
   // Same public Firebase config as index.html (apiKey is public by design,
