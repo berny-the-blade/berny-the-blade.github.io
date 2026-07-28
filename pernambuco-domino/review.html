@@ -439,13 +439,22 @@
     const containerRef = React.useRef(null);
     const [measuredW, setMeasuredW] = React.useState(360);
     React.useLayoutEffect(() => {
+      const el = containerRef.current;
+      if (!el) return;
       function measure() {
-        const w = containerRef.current && containerRef.current.clientWidth;
+        const w = el.clientWidth;
         if (w > 0) setMeasuredW(w);
       }
       measure();
+      // The one-shot measure missed the real width when the board first mounted
+      // at width 0 (e.g. still laying out / briefly hidden), leaving measuredW at
+      // the 360 default -> the board was sized for a wider container than the phone
+      // actually has and clipped on the right. Observe the element so measuredW
+      // always tracks the true rendered width.
+      let ro = null;
+      if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(measure); ro.observe(el); }
       window.addEventListener('resize', measure);
-      return () => window.removeEventListener('resize', measure);
+      return () => { if (ro) ro.disconnect(); window.removeEventListener('resize', measure); };
     }, []);
 
     // Wrap the board into multiple rows (the game's "Em fileiras" snake
@@ -480,6 +489,30 @@
       [boardArr, measuredW, H, HW, VW]
     );
 
+    // Guarantee the whole board fits the container width regardless of any
+    // snake-fold quirk that can leave the bounding box wider than usableW (the
+    // container clips with overflowX:hidden, so right-edge tiles were cut off on
+    // narrow phones). Measure the real tile bbox and scale-to-fit -- only shrinks
+    // when it would otherwise clip; normal boards render at scale 1.
+    const bbox = React.useMemo(() => {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      layout.tiles.forEach(function (p) {
+        const tw = p.orient === 'horizontal' ? HW : VW;
+        const th = p.orient === 'horizontal' ? VW : HW;
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x + tw > maxX) maxX = p.x + tw;
+        if (p.y + th > maxY) maxY = p.y + th;
+      });
+      if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
+      return { minX, minY, maxX, maxY };
+    }, [layout, HW, VW]);
+    const contentW = Math.max(1, bbox.maxX - bbox.minX);
+    const contentH = Math.max(1, bbox.maxY - bbox.minY);
+    const fitScale = Math.min(1, usableW / contentW);
+    const scaledH = contentH * fitScale;
+    const leftMargin = Math.max(0, (measuredW - contentW * fitScale) / 2);
+
     const caption = segments[step - 1] ? segments[step - 1].map(function (e) {
       const who = REPLAY_RELABEL[e.actor_rel] || e.actor_rel;
       if (e.is_pass) return who + ' tocou';
@@ -490,17 +523,19 @@
     return (
       <div>
         <div ref={containerRef} style={{ width: '100%', overflowX: 'hidden', overflowY: 'hidden', background: '#0f3d1e', borderRadius: 10, marginBottom: 8 }}>
-          <div style={{ position: 'relative', width: '100%', height: H }}>
-            {layout.tiles.map((p) => {
-              const t = boardArr[p.i];
-              const tw = p.orient === 'horizontal' ? HW : VW;
-              const th = p.orient === 'horizontal' ? VW : HW;
-              return (
-                <div key={p.i} style={{ position: 'absolute', left: p.x, top: p.y, width: tw, height: th }}>
-                  <ReplayBoardTile tile={t} orientation={p.orient} flipped={p.flip} hw={HW} vw={VW} />
-                </div>
-              );
-            })}
+          <div style={{ position: 'relative', width: '100%', height: scaledH + PAD * 2 }}>
+            <div style={{ position: 'absolute', left: leftMargin, top: PAD, width: contentW, height: contentH, transform: 'scale(' + fitScale + ')', transformOrigin: 'top left' }}>
+              {layout.tiles.map((p) => {
+                const t = boardArr[p.i];
+                const tw = p.orient === 'horizontal' ? HW : VW;
+                const th = p.orient === 'horizontal' ? VW : HW;
+                return (
+                  <div key={p.i} style={{ position: 'absolute', left: p.x - bbox.minX, top: p.y - bbox.minY, width: tw, height: th }}>
+                    <ReplayBoardTile tile={t} orientation={p.orient} flipped={p.flip} hw={HW} vw={VW} />
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
         <div className="replay-caption">{caption}</div>
