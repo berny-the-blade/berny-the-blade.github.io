@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MediPreço</title>
+<meta name="description" content="Compare preços de remédios em farmácias perto de você.">
+<meta name="theme-color" content="#0F5257" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0B1615" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-512.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Work+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#F3F6F5;
+    --bg-glow:#E3EFEE;
+    --surface:#FFFFFF;
+    --surface-2:#EAF0EE;
+    --text:#142420;
+    --text-muted:#4B5B56;
+    --border:#D7E1DD;
+    --primary:#0F5257;
+    --primary-strong:#0A3A3D;
+    --primary-tint:#E3EFEE;
+    --accent:#B4791F;
+    --accent-tint:#FBEFDD;
+    --good:#1E7A57;
+    --good-tint:#E3F3EA;
+    --on-good:#FFFFFF;
+    --shadow: 15,45,42;
+    --font-display:'Archivo','Arial Narrow',sans-serif;
+    --font-body:'Work Sans',system-ui,-apple-system,sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0B1615;
+      --bg-glow:#102421;
+      --surface:#11211F;
+      --surface-2:#16302C;
+      --text:#ECF3F0;
+      --text-muted:#9FB3AD;
+      --border:#223B37;
+      --primary:#5BC4B6;
+      --primary-strong:#7FD8CB;
+      --primary-tint:#163430;
+      --accent:#E3A855;
+      --accent-tint:#2E2314;
+      --good:#4FC98B;
+      --good-tint:#113626;
+      --on-good:#062017;
+      --shadow:0,0,0;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B1615;
+    --bg-glow:#102421;
+    --surface:#11211F;
+    --surface-2:#16302C;
+    --text:#ECF3F0;
+    --text-muted:#9FB3AD;
+    --border:#223B37;
+    --primary:#5BC4B6;
+    --primary-strong:#7FD8CB;
+    --primary-tint:#163430;
+    --accent:#E3A855;
+    --accent-tint:#2E2314;
+    --good:#4FC98B;
+    --good-tint:#113626;
+    --on-good:#062017;
+    --shadow:0,0,0;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, var(--bg-glow), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding:40px 16px;
+  }
+  @media (max-width:480px){ body{ padding:0; } }
+
+  button, input{ font-family:inherit; color:inherit; }
+  :focus-visible{ outline:2px solid var(--primary); outline-offset:2px; border-radius:6px; }
+
+  .shell{
+    width:100%;
+    max-width:428px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:28px;
+    box-shadow:0 20px 60px -20px rgba(var(--shadow),0.35);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  @media (max-width:480px){
+    .shell{ border-radius:0; min-height:100vh; border:none; }
+  }
+
+  .header{
+    padding:calc(28px + env(safe-area-inset-top)) 22px 18px;
+    border-bottom:1px solid var(--border);
+  }
+  .eyebrow{
+    font-family:var(--font-display);
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.14em;
+    color:var(--primary);
+    text-transform:uppercase;
+  }
+  .brand{
+    font-family:var(--font-display);
+    font-weight:800;
+    font-size:28px;
+    letter-spacing:-0.01em;
+    margin:2px 0 4px;
+    text-wrap:balance;
+  }
+  .brand span{ color:var(--accent); }
+  .tagline{
+    font-size:14px;
+    color:var(--text-muted);
+    margin:0;
+  }
+
+  .location{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 22px;
+    background:var(--surface-2);
+    border-bottom:1px solid var(--border);
+  }
+  .location .icon{ color:var(--primary); flex-shrink:0; }
+  .location .text{ flex:1; min-width:0; }
+  .location .label{ font-size:11px; color:var(--text-muted); }
+  .location .place{ font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .btn-ghost{
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--primary);
+    font-size:12px;
+    font-weight:600;
+    padding:7px 12px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s ease;
+    flex-shrink:0;
+  }
+  .btn-ghost:hover{ background:var(--primary-tint); }
+
+  .search-wrap{
+    position:relative;
+    padding:18px 22px 6px;
+  }
+  .search-box{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:12px 14px;
+  }
+  .search-box .icon{ color:var(--text-muted); flex-shrink:0; }
+  .search-box input{
+    border:none;
+    background:transparent;
+    outline:none;
+    font-size:15px;
+    width:100%;
+    color:var(--text);
+  }
+  .search-box input::placeholder{ color:var(--text-muted); }
+
+  .suggestions{
+    position:absolute;
+    left:22px; right:22px; top:64px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:14px;
+    box-shadow:0 12px 30px -10px rgba(var(--shadow),0.3);
+    overflow:hidden;
+    z-index:5;
+    display:none;
+  }
+  .suggestions.open{ display:block; }
+  .suggestion{
+    width:100%;
+    text-align:left;
+    padding:11px 14px;
+    background:none;
+    border:none;
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+    display:block;
+  }
+  .suggestion:last-child{ border-bottom:none; }
+  .suggestion:hover, .suggestion:focus-visible{ background:var(--surface-2); }
+  .suggestion .n{ font-size:14px; font-weight:600; }
+  .suggestion .p{ font-size:12px; color:var(--text-muted); }
+
+  .controls{
+    padding:14px 22px 4px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .control-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .control-row .k{ font-size:11px; color:var(--text-muted); width:56px; flex-shrink:0; }
+  .pillgroup{ display:flex; gap:6px; }
+  .pill{
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--text-muted);
+    font-size:12px;
+    font-weight:600;
+    padding:6px 11px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .pill.active{
+    background:var(--primary);
+    border-color:var(--primary);
+    color:var(--surface);
+  }
+
+  .results{ padding:14px 22px 6px; }
+  .results-head{ margin-bottom:10px; }
+  .med-name{ font-family:var(--font-display); font-size:17px; font-weight:700; }
+  .med-meta{ font-size:12.5px; color:var(--text-muted); }
+
+  .cards{ display:flex; flex-direction:column; gap:10px; }
+  .card{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:8px 14px;
+    align-items:center;
+    padding:13px 14px;
+    border:1px solid var(--border);
+    border-radius:16px;
+    background:var(--surface);
+  }
+  .card.cheapest{
+    border-color:var(--good);
+    background:var(--good-tint);
+  }
+  .card .pharm-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .card .pharm-name{ font-weight:700; font-size:14.5px; }
+  .card .tag{
+    font-size:10.5px;
+    font-weight:700;
+    letter-spacing:0.02em;
+    padding:2px 7px;
+    border-radius:999px;
+    color:var(--text);
+  }
+  .tag.generico{ background:var(--primary-tint); }
+  .tag.referencia{ background:var(--accent-tint); }
+  .card .sub{
+    display:flex; align-items:center; gap:5px;
+    font-size:12px; color:var(--text-muted);
+    margin-top:2px;
+  }
+  .card .sub svg{ flex-shrink:0; }
+
+  .price-col{ text-align:right; }
+  .badge-cheap{
+    display:inline-block;
+    font-size:10px;
+    font-weight:700;
+    letter-spacing:0.03em;
+    text-transform:uppercase;
+    color:var(--on-good);
+    background:var(--good);
+    padding:2px 8px;
+    border-radius:999px;
+    margin-bottom:4px;
+  }
+  .price{
+    font-family:var(--font-display);
+    font-weight:800;
+    font-size:19px;
+    color:var(--accent);
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  .savings{
+    font-size:11px;
+    color:var(--good);
+    font-weight:600;
+    margin-top:2px;
+  }
+
+  .missing-note{
+    font-size:11.5px;
+    color:var(--text-muted);
+    padding:8px 2px 0;
+  }
+
+  .fallback{
+    margin:18px 22px 6px;
+    padding:14px 16px;
+    background:var(--surface-2);
+    border-radius:14px;
+    border:1px solid var(--border);
+  }
+  .fallback h3{
+    font-family:var(--font-display);
+    font-size:13px;
+    margin:0 0 4px;
+  }
+  .fallback p{ font-size:12.5px; color:var(--text-muted); margin:0 0 8px; }
+  .fallback ul{ margin:0; padding-left:18px; font-size:12.5px; color:var(--text-muted); }
+  .fallback li{ margin-bottom:2px; }
+
+  .footer{
+    text-align:center;
+    font-size:11px;
+    color:var(--text-muted);
+    padding:16px 22px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="header">
+    <div class="eyebrow">Medicamentos</div>
+    <h1 class="brand">Medi<span>Preço</span></h1>
+    <p class="tagline">O remédio mais barato perto de você.</p>
+  </div>
+
+  <div class="location">
+    <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+    <div class="text">
+      <div class="label">Sua localização</div>
+      <div class="place" id="locPlace">Boa Viagem, Recife</div>
+    </div>
+    <button class="btn-ghost" id="btnLoc" type="button">Trocar</button>
+  </div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" role="combobox" aria-expanded="false" aria-label="Buscar remédio ou princípio ativo" placeholder="Buscar remédio ou princípio ativo…" autocomplete="off">
+    </div>
+    <div class="suggestions" id="suggestions"></div>
+  </div>
+
+  <div class="controls">
+    <div class="control-row">
+      <span class="k">Tipo</span>
+      <div class="pillgroup" id="filterGroup">
+        <button class="pill active" data-filter="todos" type="button">Todos</button>
+        <button class="pill" data-filter="generico" type="button">Genérico</button>
+        <button class="pill" data-filter="referencia" type="button">Referência</button>
+      </div>
+    </div>
+    <div class="control-row">
+      <span class="k">Ordenar</span>
+      <div class="pillgroup" id="sortGroup">
+        <button class="pill active" data-sort="preco" type="button">Menor preço</button>
+        <button class="pill" data-sort="dist" type="button">Mais perto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="results">
+    <div class="results-head">
+      <div class="med-name" id="medName"></div>
+      <div class="med-meta" id="medMeta"></div>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="missing-note" id="missingNote"></div>
+  </div>
+
+  <div class="fallback">
+    <h3>Não achou perto de você?</h3>
+    <p>Compare mais opções online antes de decidir:</p>
+    <ul>
+      <li>Sites de comparação de farmácias (ex.: Consulta Remédios)</li>
+      <li>Sites oficiais das farmácias da sua cidade</li>
+    </ul>
+  </div>
+
+  <div class="footer">Protótipo — dados ilustrativos, não são preços reais.</div>
+</div>
+
+<script>
+  const PHARMACIES = {
+    raia:       { name:'Droga Raia',        address:'Shopping Recife',      dist:{ boaviagem:0.8, casaforte:3.4 } },
+    drogasil:   { name:'Drogasil',           address:'Av. Boa Viagem',       dist:{ boaviagem:0.5, casaforte:4.1 } },
+    paguemenos: { name:'Pague Menos',        address:'Av. Domingos Ferreira',dist:{ boaviagem:1.1, casaforte:3.8 } },
+    pacheco:    { name:'Drogaria Pacheco',   address:'Casa Forte',           dist:{ boaviagem:4.6, casaforte:0.6 } },
+    bairro:     { name:'Farmácia do Bairro', address:'Rua da Aurora',        dist:{ boaviagem:1.6, casaforte:1.9 } }
+  };
+
+  const LOCATIONS = {
+    boaviagem: 'Boa Viagem, Recife',
+    casaforte: 'Casa Forte, Recife'
+  };
+
+  const MEDS = [
+    { id:'dorflex', name:'Dorflex', principio:'Dipirona + Carisoprodol + Cafeína', apresentacao:'30 comprimidos',
+      offers:[
+        { pharm:'drogasil',   tipo:'referencia', preco:19.90 },
+        { pharm:'raia',       tipo:'referencia', preco:22.90 },
+        { pharm:'pacheco',    tipo:'referencia', preco:23.50 },
+        { pharm:'paguemenos', tipo:'generico',   preco:12.50 },
+        { pharm:'bairro',     tipo:'generico',   preco:11.90 }
+      ] },
+    { id:'loratadina', name:'Loratadina 10mg', principio:'Loratadina', apresentacao:'12 comprimidos',
+      offers:[
+        { pharm:'raia',       tipo:'generico',   preco:8.90 },
+        { pharm:'raia',       tipo:'referencia', preco:24.90, produto:'Claritin' },
+        { pharm:'drogasil',   tipo:'generico',   preco:7.49 },
+        { pharm:'paguemenos', tipo:'generico',   preco:8.20 },
+        { pharm:'pacheco',    tipo:'referencia', preco:26.50, produto:'Claritin' },
+        { pharm:'bairro',     tipo:'generico',   preco:7.90 }
+      ] },
+    { id:'dipirona', name:'Dipirona 500mg', principio:'Dipirona monoidratada', apresentacao:'10 comprimidos',
+      offers:[
+        { pharm:'raia',       tipo:'generico', preco:5.49 },
+        { pharm:'drogasil',   tipo:'generico', preco:4.99 },
+        { pharm:'paguemenos', tipo:'generico', preco:6.20 },
+        { pharm:'pacheco',    tipo:'generico', preco:5.80 },
+        { pharm:'bairro',     tipo:'generico', preco:4.50 }
+      ] },
+    { id:'paracetamol', name:'Paracetamol 750mg', principio:'Paracetamol', apresentacao:'20 comprimidos',
+      offers:[
+        { pharm:'raia',       tipo:'generico', preco:9.90 },
+        { pharm:'drogasil',   tipo:'generico', preco:8.49 },
+        { pharm:'paguemenos', tipo:'generico', preco:7.99 },
+        { pharm:'pacheco',    tipo:'generico', preco:10.30 }
+      ] },
+    { id:'losartana', name:'Losartana Potássica 50mg', principio:'Losartana potássica', apresentacao:'30 comprimidos',
+      offers:[
+        { pharm:'raia',       tipo:'generico', preco:14.90 },
+        { pharm:'drogasil',   tipo:'generico', preco:13.50 },
+        { pharm:'paguemenos', tipo:'generico', preco:12.99 },
+        { pharm:'pacheco',    tipo:'generico', preco:15.20 },
+        { pharm:'bairro',     tipo:'generico', preco:13.90 }
+      ] },
+    { id:'omeprazol', name:'Omeprazol 20mg', principio:'Omeprazol', apresentacao:'28 cápsulas',
+      offers:[
+        { pharm:'raia',       tipo:'generico', preco:11.90 },
+        { pharm:'drogasil',   tipo:'generico', preco:10.49 },
+        { pharm:'paguemenos', tipo:'generico', preco:12.50 },
+        { pharm:'pacheco',    tipo:'generico', preco:11.20 },
+        { pharm:'bairro',     tipo:'generico', preco:10.90 }
+      ] }
+  ];
+
+  const state = { locId:'boaviagem', sort:'preco', filter:'todos', medId:'dorflex' };
+
+  const fmtPrice = v => v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  const fmtDist  = v => v.toLocaleString('pt-BR', { minimumFractionDigits:1, maximumFractionDigits:1 }) + ' km';
+
+  const searchInput = document.getElementById('searchInput');
+  const suggestionsEl = document.getElementById('suggestions');
+  const cardsEl = document.getElementById('cards');
+  const medNameEl = document.getElementById('medName');
+  const medMetaEl = document.getElementById('medMeta');
+  const missingEl = document.getElementById('missingNote');
+  const locPlaceEl = document.getElementById('locPlace');
+
+  function renderSuggestions(query){
+    const q = query.trim().toLowerCase();
+    if (!q){ suggestionsEl.classList.remove('open'); suggestionsEl.innerHTML=''; searchInput.setAttribute('aria-expanded','false'); return; }
+    const matches = MEDS.filter(m =>
+      m.name.toLowerCase().includes(q) || m.principio.toLowerCase().includes(q)
+    ).slice(0,5);
+    if (!matches.length){
+      suggestionsEl.innerHTML = '<div class="suggestion" style="cursor:default;color:var(--text-muted);">Nenhum medicamento encontrado</div>';
+      suggestionsEl.classList.add('open');
+      searchInput.setAttribute('aria-expanded','true');
+      return;
+    }
+    suggestionsEl.innerHTML = matches.map(m => `
+      <button class="suggestion" type="button" data-id="${m.id}">
+        <div class="n">${m.name}</div>
+        <div class="p">${m.principio}</div>
+      </button>
+    `).join('');
+    suggestionsEl.classList.add('open');
+    searchInput.setAttribute('aria-expanded','true');
+  }
+
+  suggestionsEl.addEventListener('mousedown', (e) => {
+    const btn = e.target.closest('.suggestion[data-id]');
+    if (!btn) return;
+    e.preventDefault();
+    state.medId = btn.dataset.id;
+    searchInput.value = '';
+    suggestionsEl.classList.remove('open');
+    suggestionsEl.innerHTML = '';
+    renderResults();
+  });
+
+  searchInput.addEventListener('input', (e) => renderSuggestions(e.target.value));
+  searchInput.addEventListener('blur', () => {
+    setTimeout(() => suggestionsEl.classList.remove('open'), 120);
+  });
+
+  document.getElementById('filterGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill[data-filter]');
+    if (!btn) return;
+    state.filter = btn.dataset.filter;
+    document.querySelectorAll('#filterGroup .pill').forEach(p => p.classList.toggle('active', p === btn));
+    renderResults();
+  });
+
+  document.getElementById('sortGroup').addEventListener('click', (e) => {
+    const btn = e.target.closest('.pill[data-sort]');
+    if (!btn) return;
+    state.sort = btn.dataset.sort;
+    document.querySelectorAll('#sortGroup .pill').forEach(p => p.classList.toggle('active', p === btn));
+    renderResults();
+  });
+
+  document.getElementById('btnLoc').addEventListener('click', () => {
+    state.locId = state.locId === 'boaviagem' ? 'casaforte' : 'boaviagem';
+    locPlaceEl.textContent = LOCATIONS[state.locId];
+    renderResults();
+  });
+
+  function renderResults(){
+    const med = MEDS.find(m => m.id === state.medId);
+    medNameEl.textContent = `${med.name} — ${med.apresentacao}`;
+    medMetaEl.textContent = `Princípio ativo: ${med.principio}`;
+
+    let offers = med.offers.filter(o => state.filter === 'todos' || o.tipo === state.filter);
+    const enriched = offers.map(o => ({
+      ...o,
+      pharmName: PHARMACIES[o.pharm].name,
+      address: PHARMACIES[o.pharm].address,
+      dist: PHARMACIES[o.pharm].dist[state.locId]
+    }));
+
+    enriched.sort((a,b) => state.sort === 'preco' ? a.preco - b.preco : a.dist - b.dist);
+
+    if (!enriched.length){
+      cardsEl.innerHTML = '<div style="font-size:13px;color:var(--text-muted);padding:8px 2px;">Nenhuma oferta encontrada com esse filtro.</div>';
+      missingEl.textContent = '';
+      return;
+    }
+
+    const cheapestPrice = Math.min(...enriched.map(o => o.preco));
+    const priciest = Math.max(...enriched.map(o => o.preco));
+
+    cardsEl.innerHTML = enriched.map(o => {
+      const isCheapest = o.preco === cheapestPrice;
+      const savingsAmt = priciest - cheapestPrice;
+      const savingsPct = priciest > 0 ? Math.round((savingsAmt / priciest) * 100) : 0;
+      const productLabel = o.produto ? o.produto : med.name;
+      return `
+        <div class="card ${isCheapest ? 'cheapest' : ''}">
+          <div>
+            <div class="pharm-row">
+              <span class="pharm-name">${o.pharmName}</span>
+              <span class="tag ${o.tipo}">${o.tipo === 'generico' ? 'Genérico' : 'Referência'}</span>
+            </div>
+            <div class="sub">${o.address} · ${productLabel}</div>
+            <div class="sub">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              ${fmtDist(o.dist)}
+            </div>
+          </div>
+          <div class="price-col">
+            ${isCheapest ? '<span class="badge-cheap">Mais barato</span><br>' : ''}
+            <span class="price">${fmtPrice(o.preco)}</span>
+            ${isCheapest && savingsAmt > 0 ? `<div class="savings">economiza ${fmtPrice(savingsAmt)} (${savingsPct}%)</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const presentPharms = new Set(offers.map(o => o.pharm));
+    const missing = Object.keys(PHARMACIES).filter(id => !presentPharms.has(id)).map(id => PHARMACIES[id].name);
+    missingEl.textContent = missing.length ? `Sem oferta encontrada em: ${missing.join(', ')}.` : '';
+  }
+
+  renderResults();
+</script>
+</body>
+</html>
