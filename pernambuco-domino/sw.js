@@ -1,4 +1,4 @@
-const CACHE_NAME = 'domino-pernambuco-v10';
+const CACHE_NAME = 'domino-pernambuco-v12';
 // Don't pre-cache index.html — always fetch fresh so updates show up immediately.
 const ASSETS_TO_CACHE = [
   './manifest.json',
@@ -49,10 +49,16 @@ self.addEventListener('fetch', (event) => {
 
   // Navigation requests + index.html: always network, never cache.
   // This guarantees code updates show up on the next reload.
-  const isNav = req.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+  // same origin only: 'https://cdn.tailwindcss.com/' also ends with '/', and was being treated (and offline, answered) as the page
+  const isNav = req.mode === 'navigate' || (url.origin === self.location.origin && (url.pathname.endsWith('/') || url.pathname.endsWith('/index.html')));
   if (isNav) {
+    // 2026-11-18: still always from the network when there is one, but the last page fetched is
+    // kept, so the game opens without a connection (a solo game against the bots works offline).
     event.respondWith(
-      fetch(req, { cache: 'no-store' }).catch(() => caches.match('./index.html'))
+      fetch(req, { cache: 'no-store' }).then((response) => {
+        if (response.ok && req.method === 'GET') { const clone = response.clone(); caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', clone)).catch(() => {}); }
+        return response;
+      }).catch(() => caches.match('./index.html'))
     );
     return;
   }
@@ -61,9 +67,11 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(req)
       .then((response) => {
-        if (response.ok) {
+        // opaque = a script or style from another site (React, Firebase, fonts) loaded the plain way:
+        // its status cannot be read, but it has to be kept or the page cannot start offline
+        if ((response.ok || response.type === 'opaque') && req.method === 'GET') {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, clone)).catch(() => {});
         }
         return response;
       })
